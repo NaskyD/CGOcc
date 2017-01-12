@@ -1,0 +1,15 @@
+set GLEW_HOME=E:\Projekte\Bibliotheken\glew-1.13.0
+set CMAKE_PREFIX_PATH=C:\Program Files (x86)\Windows Kits\8.1\Lib\winv6.3\um\x64
+set QT_DIR=C:\Qt\5.6\msvc2015_64
+set LIBZEUG_HOME=E:\Projekte\Bibliotheken\libzeug-0.6.0
+set GLFW_HOME=E:\Projekte\Bibliotheken\glfw-3.2
+set GLFW_LIB_R=E:\Projekte\Bibliotheken\glfw-3.2\build\src\Release
+set GLFW_LIB_D=E:\Projekte\Bibliotheken\glfw-3.2\build\src\Debug
+set GLM_HOME=E:\Projekte\Bibliotheken\glm-0.9.7.5\glm
+set QT_QPA_PLATFORM_PLUGIN_PATH=%QT_DIR%/plugins/platforms
+set ASSIMP_HOME=E:\Projekte\Bibliotheken\assimp-3.2
+set ERSTE=C:\Users\Fabian\Documents\CGSee\assimp--3.0.1270-sdk\bin\assimp_release-dll_x64
+set ZWEITE=E:\Projekte\Bibliotheken\glew-1.13.0\bin\Release\Win32
+set glbinding=E:\Projekte\Bibliotheken\glbinding-2.0.1\glbinding-2.0.1\build
+set globjects=E:\Projekte\Bibliotheken\globjects-0.5.0\globjects-0.5.0\build
+set PATH=%ASSIMP_HOME%;%ASSIMP_HOME%/build/code/Debug;%ASSIMP_HOME%/build/code/Release;%ERSTE%;%LIBZEUG_HOME%/build/Debug;%LIBZEUG_HOME%/build/Release;%LIBZEUG_HOME%/build/Release;%ZWEITE%;%GLEW_HOME%/bin;%QT_DIR%/bin;%GLFW_HOME%;%GLFW_LIB_R%;%GLFW_LIB_D%;%glbinding%/Debug;%glbinding%/Release;%globjects%/Debug;%globjects%/Release;%PATH%;
