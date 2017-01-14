@@ -20,24 +20,7 @@
 using namespace gl;
 
 Painter::Painter(int initialWindowWidth, int initialWindowHeight)
-	: m_meshLoader()
-	, m_cityVertices()
-	, m_lineVertices()
-	, m_line2Vertices()
-	, m_pathVertices()
-	, m_path2Vertices()
-	, m_cityIndices()
-	, m_lineIndices()
-	, m_line2Indices()
-	, m_pathIndices()
-	, m_path2Indices()
-	, m_planeIndices()
-	, m_streetsIndices()
-	, m_normals()
-	, m_projection()
-	, m_view()
-	, m_model()
-	, m_camera(glm::vec3(30.0f, 24.0f, 20.0f), glm::vec3(0.f, -5.f, 0.f), glm::vec3(0.f, 1.f, 0.f))
+    : m_camera(glm::vec3(30.0f, 24.0f, 20.0f), glm::vec3(0.f, -5.f, 0.f), glm::vec3(0.f, 1.f, 0.f))
 	, m_sceneLight1(50.f, 10.f, 20.f)
 	, m_sceneLight2(-40.f, 80.f, -30.f)
 	, m_currentHaloColor(0.f, 0.f, 0.f, 1.f)
@@ -102,11 +85,17 @@ void Painter::initialize()
 	m_fboAdaptiveTranspancyPerPixel = (new globjects::Framebuffer());
 	m_fboGhostedView = (new globjects::Framebuffer());
 
+	//line vertices
+	m_vaoLineVertices = (new globjects::VertexArray());
+	m_vboLineVertices = (new globjects::Buffer());
+
 	loadGeometryToGPU(m_vaoCity, m_vboCityIndices, m_cityVertices, m_cityIndices, true);
 	loadGeometryToGPU(m_vaoPlane, m_vboPlaneIndices, m_planeVertices, m_planeIndices, false);
 	loadGeometryToGPU(m_vaoStreets, m_vboStreetsIndices, m_streetsVertices, m_streetsIndices, false);
-	loadGeometryToGPU(m_vaoLine, m_vboLineIndices, m_lineVertices, m_lineIndices, false);
+	loadGeometryToGPU(m_vaoLine, m_vboLineIndices, m_lineVertices_OLD, m_lineIndices_OLD, false);
 	loadGeometryToGPU(m_vaoPath, m_vboPathIndices, m_pathVertices, m_pathIndices, false);
+	loadGeometryToGPU(m_vaoLineVertices, m_vboLineVertices, m_lineVertices, m_lineIndices, false);
+
 	if (c_twoLines)
 	{
 		loadGeometryToGPU(m_vaoLine2, m_vboLine2Indices, m_line2Vertices, m_line2Indices, false);
@@ -228,9 +217,11 @@ void Painter::setUpShader()
 void Painter::loadGeometry()
 {
 	m_meshLoader.loadFileData();
-	bool verticesValid = m_meshLoader.getVertices(m_cityVertices, m_lineVertices, m_line2Vertices, m_pathVertices, m_path2Vertices, m_planeVertices, m_streetsVertices);
-	bool indicesValid = m_meshLoader.getIndices(m_cityIndices, m_lineIndices, m_line2Indices, m_pathIndices, m_path2Indices, m_planeIndices, m_streetsIndices);
+	bool verticesValid = m_meshLoader.getVertices(m_cityVertices, m_lineVertices_OLD, m_line2Vertices, m_pathVertices, m_path2Vertices, m_planeVertices, m_streetsVertices);
+	bool indicesValid = m_meshLoader.getIndices(m_cityIndices, m_lineIndices_OLD, m_line2Indices, m_pathIndices, m_path2Indices, m_planeIndices, m_streetsIndices);
 	bool normalsValid = m_meshLoader.getNormals(m_normals);
+
+	m_meshLoader.getLineVertices(m_lineVertices, m_lineIndices);
 
 	if (verticesValid == false)
 		std::printf("No geometry accessable");
@@ -341,67 +332,12 @@ void Painter::drawNormalScene()
 	setGlState();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	//drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
-	//drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
-
-	glm::vec3 testVec[] = { glm::vec3(10.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 0.f), glm::vec3(0.f, 0.f, 10.f), glm::vec3(10.f, 0.f, 0.f), glm::vec3(5.f, 0.f, 0.f), glm::vec3(0.f, 10.f, 0.f)};
-	unsigned int indecies[] = { 0, 1, 2, 3, 4 , 5};
-	globjects::VertexArray * vao = new globjects::VertexArray;
-	globjects::Buffer * vbo = new globjects::Buffer;
-	globjects::Buffer * vboIndc = new globjects::Buffer;
-
-	vao->bind();
-
-	vbo->bind(GL_ARRAY_BUFFER);
-	vbo->setData(6 * sizeof(glm::vec3), &testVec, GL_STATIC_DRAW);
-
-	vboIndc->setData(6 * sizeof(unsigned int), &indecies, GL_STATIC_DRAW);
-	vboIndc->bind(GL_ELEMENT_ARRAY_BUFFER);
-
-	vao->binding(0)->setAttribute(0);
-	vao->binding(0)->setBuffer(vbo, 0, sizeof(float) * 3);
-	vao->binding(0)->setFormat(3, GL_FLOAT, GL_FALSE, 0);
-	vao->enable(0);
-
-	m_extrudeLinesProgram->use();
-
-	//get uniform locations
-	GLint loc_model = m_extrudeLinesProgram->getUniformLocation("model");
-	GLint loc_view = m_extrudeLinesProgram->getUniformLocation("view");
-	GLint loc_projection = m_extrudeLinesProgram->getUniformLocation("projection");
-	GLint loc_viewVector = m_extrudeLinesProgram->getUniformLocation("viewVector");
-	GLint loc_lightVector = m_extrudeLinesProgram->getUniformLocation("lightVector");
-	GLint loc_lightVector2 = m_extrudeLinesProgram->getUniformLocation("lightVector2");
-	GLint loc_useNormals = m_extrudeLinesProgram->getUniformLocation("useNormals");
-	GLint loc_specifiedColor = m_extrudeLinesProgram->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = m_extrudeLinesProgram->getUniformLocation("renderDepthValueForTextureUsage");
-
-	//bind uniforms
-	if (loc_model >= 0)
-		m_extrudeLinesProgram->setUniform(loc_model, m_model);
-	if (loc_view >= 0)
-		m_extrudeLinesProgram->setUniform(loc_view, m_view);
-	if (loc_projection >= 0)
-		m_extrudeLinesProgram->setUniform(loc_projection, m_projection);
-	if (loc_viewVector >= 0)
-		m_extrudeLinesProgram->setUniform(loc_viewVector, glm::vec3(m_camera.center - m_camera.eye));
-	if (loc_lightVector >= 0)
-		m_extrudeLinesProgram->setUniform(loc_lightVector, m_sceneLight1);
-	if (loc_lightVector2 >= 0)
-		m_extrudeLinesProgram->setUniform(loc_lightVector2, m_sceneLight2);
-	if (loc_useNormals >= 0)
-		m_extrudeLinesProgram->setUniform(loc_useNormals, false);
-
-	vao->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(6) * 3, GL_UNSIGNED_INT);
-	m_extrudeLinesProgram->release();
-	vao->unbind();
-
-	vao->unbind();
-
-	drawGeneralGeometry(vao, m_vboLineIndices, m_lineIndices, m_extrudeLinesProgram, false);
+	drawExtrudedLines();
 
 	unsetGlState();
 }
@@ -424,7 +360,7 @@ void Painter::drawOutlineHintsVisualization()
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 	
 	//########## Render extruded line to ABuffer ##############
-	drawToABufferOnly(m_vaoLine, m_vboLineIndices, m_lineIndices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
+	drawToABufferOnly(m_vaoLine, m_vboLineIndices, m_lineIndices_OLD, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -713,7 +649,7 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 	if (loc_renderDepthValueForTextureUsage >= 0)
 		program->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
 
-	vao->drawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()) * 3, GL_UNSIGNED_INT);
+	vao->drawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
 	program->release();
 	vao->unbind();
 }
@@ -790,6 +726,46 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 
 	program->release();
 	m_vaoSAQ->unbind();
+}
+
+void Painter::drawExtrudedLines(glm::vec4 specifiedColor)
+{
+	m_vaoLineVertices->bind();
+	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
+	m_extrudeLinesProgram->use();
+
+	glLineWidth(4.f);
+
+	//get uniform locations
+	GLint loc_model = m_extrudeLinesProgram->getUniformLocation("model");
+	GLint loc_view = m_extrudeLinesProgram->getUniformLocation("view");
+	GLint loc_projection = m_extrudeLinesProgram->getUniformLocation("projection");
+	GLint loc_viewVector = m_extrudeLinesProgram->getUniformLocation("viewVector");
+	GLint loc_lightVector = m_extrudeLinesProgram->getUniformLocation("lightVector");
+	GLint loc_lightVector2 = m_extrudeLinesProgram->getUniformLocation("lightVector2");
+	GLint loc_useNormals = m_extrudeLinesProgram->getUniformLocation("useNormals");
+	GLint loc_specifiedColor = m_extrudeLinesProgram->getUniformLocation("specifiedColor");
+	GLint loc_renderDepthValueForTextureUsage = m_extrudeLinesProgram->getUniformLocation("renderDepthValueForTextureUsage");
+
+	//bind uniforms
+	if (loc_model >= 0)
+		m_extrudeLinesProgram->setUniform(loc_model, m_model);
+	if (loc_view >= 0)
+		m_extrudeLinesProgram->setUniform(loc_view, m_view);
+	if (loc_projection >= 0)
+		m_extrudeLinesProgram->setUniform(loc_projection, m_projection);
+	if (loc_viewVector >= 0)
+		m_extrudeLinesProgram->setUniform(loc_viewVector, glm::vec3(m_camera.center - m_camera.eye));
+	if (loc_lightVector >= 0)
+		m_extrudeLinesProgram->setUniform(loc_lightVector, m_sceneLight1);
+	if (loc_lightVector2 >= 0)
+		m_extrudeLinesProgram->setUniform(loc_lightVector2, m_sceneLight2);
+	if (loc_useNormals >= 0)
+		m_extrudeLinesProgram->setUniform(loc_useNormals, false);
+
+	m_vaoLineVertices->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(m_lineIndices.size()), GL_UNSIGNED_INT);
+	m_extrudeLinesProgram->release();
+	m_vaoLineVertices->unbind();
 }
 
 void Painter::setUpMatrices()

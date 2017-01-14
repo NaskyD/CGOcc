@@ -7,6 +7,10 @@
 
 #include "assimp/PostProcess.h"
 
+namespace {
+	const std::string c_sceneFile = "data/scene.obj";
+}
+
 MeshLoader::MeshLoader()
 	: m_importer()
 	, m_scene(nullptr)
@@ -15,6 +19,28 @@ MeshLoader::MeshLoader()
 
 MeshLoader::~MeshLoader()
 {
+}
+
+void MeshLoader::getLineVertices(std::vector<glm::vec3> & verticesContainer, std::vector<unsigned int> & lineIndicesContainer)
+{
+	verticesContainer.emplace_back(-16.8429f, -0.7704f, -33.3231f);
+	verticesContainer.emplace_back(-16.8429f, -0.7704f, -15.7980f);
+	verticesContainer.emplace_back(-5.5530f, -0.7704f, -15.7980f);
+	verticesContainer.emplace_back(-5.4952f, -0.7704f, -0.4148f);
+	verticesContainer.emplace_back(-11.6776f, -0.7704f, -0.3741f);
+	verticesContainer.emplace_back(-11.6384f, -0.7704f, 9.2194f);
+	verticesContainer.emplace_back(8.1854f, -0.7704f, 9.1957f);
+	verticesContainer.emplace_back(8.2115f, -0.7704f, 15.0166f);
+	verticesContainer.emplace_back(26.8190f, -0.7704f, 14.9882f);
+	verticesContainer.emplace_back(26.8091f, -0.7704f, -0.3075f);
+	verticesContainer.emplace_back(23.3483f, -0.7704f, -0.3034f);
+	verticesContainer.emplace_back(23.3394f, -0.7704f, -9.2318f);
+	verticesContainer.emplace_back(30.7871f, -0.7704f, -9.2393f);
+
+	for (unsigned int i = 0; i < verticesContainer.size(); i++)
+	{
+		lineIndicesContainer.push_back(i);
+	}
 }
 
 bool MeshLoader::getVertices(std::vector<glm::vec3> & verticesContainer, std::vector<glm::vec3> & lineVerticesContainer, std::vector<glm::vec3> & lineVerticesSecondContainer, std::vector<glm::vec3> & flatLineVerticesContainer, std::vector<glm::vec3> & flatSecondLineVerticesContainer, std::vector<glm::vec3> & planeVerticesContainer, std::vector<glm::vec3> & streetsVerticesContainer)
@@ -29,7 +55,11 @@ bool MeshLoader::getVertices(std::vector<glm::vec3> & verticesContainer, std::ve
 		if (!mesh)
 			return false;
 
-		if (strcmp(mesh->mName.C_Str(), "g Line") == 0)
+		if (strcmp(mesh->mName.C_Str(), "g lineVertices") == 0)
+		{
+			continue;
+		}
+		else if (strcmp(mesh->mName.C_Str(), "g Line") == 0)
 		{
 			pushVertices(mesh, lineVerticesContainer);
 		}
@@ -179,7 +209,7 @@ bool MeshLoader::getNormals(std::vector<glm::vec3> & normalsContainer)
 
 void MeshLoader::loadFileData()
 {
-	import3DFromFile("data/scene.obj");
+	import3DFromFile(c_sceneFile);
 }
 
 bool MeshLoader::import3DFromFile(const std::string & file)

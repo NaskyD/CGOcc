@@ -53,7 +53,7 @@ public:
     void initialize();
 	double getTimeDifference();
 
-	void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao,
+	void loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao,
 									globjects::ref_ptr<globjects::Buffer> & vboIndices,
 									std::vector<glm::vec3> & vertices,
 									std::vector<unsigned int> & indices, bool useNormals);
@@ -73,6 +73,7 @@ protected:
 	void drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0);
 	void drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 	void drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures);
+	void drawExtrudedLines(glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 
 	void setGlState();
 	void unsetGlState();
@@ -106,7 +107,6 @@ protected:
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine2;
-	globjects::ref_ptr<globjects::VertexArray> m_lines[2];
 	globjects::ref_ptr<globjects::VertexArray> m_vaoPath;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoPath2;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoSAQ;
@@ -116,7 +116,6 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboCityIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboLineIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboLine2Indices;
-	globjects::ref_ptr<globjects::Buffer> m_vbolines[2];
 	globjects::ref_ptr<globjects::Buffer> m_vboPathIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPath2Indices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
@@ -135,7 +134,7 @@ protected:
 	gl::GLuint m_aBufferIndexTexture;
 
 	std::vector<glm::vec3> m_cityVertices;
-	std::vector<glm::vec3> m_lineVertices;
+	std::vector<glm::vec3> m_lineVertices_OLD;
 	std::vector<glm::vec3> m_line2Vertices;
 	std::vector<glm::vec3> m_pathVertices;
 	std::vector<glm::vec3> m_path2Vertices;
@@ -143,8 +142,14 @@ protected:
 	std::vector<glm::vec3> m_streetsVertices;
 	std::vector<glm::vec3> m_screenAlignedQuad;
 
-	std::vector<unsigned int> m_cityIndices;
+	//line vertices
+	globjects::ref_ptr<globjects::VertexArray> m_vaoLineVertices;
+	std::vector<glm::vec3> m_lineVertices;
+	globjects::ref_ptr<globjects::Buffer> m_vboLineVertices;
 	std::vector<unsigned int> m_lineIndices;
+
+	std::vector<unsigned int> m_cityIndices;
+	std::vector<unsigned int> m_lineIndices_OLD;
 	std::vector<unsigned int> m_line2Indices;
 	std::vector<unsigned int> m_linesIndices;
 	std::vector<unsigned int> m_pathIndices;

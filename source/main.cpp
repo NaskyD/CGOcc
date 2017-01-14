@@ -19,8 +19,8 @@ namespace{
 	bool g_toggleFS = false;
 	bool g_isFS = false;
 	short g_renderMode = 0;
-	const int c_windowWidth = 1920;//1024;
-	const int c_windowHeight = 1080;// 768;
+	const int c_windowWidth = 1024;//1920;//1024;
+	const int c_windowHeight = 768;// 1080;// 768;
 	Painter g_painter(c_windowWidth, c_windowHeight);
 }
 
@@ -30,6 +30,8 @@ void key_callback(GLFWwindow * window, int key, int /*scancode*/, int action, in
 		glfwSetWindowShouldClose(window, true);
 	else if (key == GLFW_KEY_F5 && action == GLFW_RELEASE)
 		globjects::File::reloadAll();
+	//else if (key == GLFW_KEY_F6 && action == GLFW_RELEASE)
+	//	g_toggleFS = !g_toggleFS;
 	else if (key == GLFW_KEY_1 && action == GLFW_RELEASE)
 		g_renderMode = 0;
 	else if (key == GLFW_KEY_2 && action == GLFW_RELEASE)
