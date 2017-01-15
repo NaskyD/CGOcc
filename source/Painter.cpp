@@ -41,6 +41,7 @@ void Painter::resizeWindow(int width, int height)
 {
 	m_windowWidth = width;
 	m_windowHeight = height;
+	glViewport(0, 0, width, height);
 	setUpMatrices();
 	setUpFBOs();
 	setUpABuffer();
@@ -53,6 +54,7 @@ void Painter::initialize()
 
 	m_generalProgram = (new globjects::Program());
 	m_outlineHintsProgram = (new globjects::Program());
+	m_extrudedLinetoABufferOnlyProgram = (new globjects::Program());
 	m_extrudeLinesProgram = (new globjects::Program());
 	m_haloLineABufferedProgram = (new globjects::Program());
 	m_clearABufferProgram = (new globjects::Program());
@@ -64,6 +66,9 @@ void Painter::initialize()
 	m_maskingBoxFilterForAdaptiveTransparancyProgram = (new globjects::Program());
 	m_maskingBoxFilterForGhostedViewProgram = (new globjects::Program());
 	m_ghostedViewProgram = (new globjects::Program());
+	m_fenceHintsProgram = (new globjects::Program());
+	m_fenceHintsCubeProgram = (new globjects::Program());
+	m_fenceHintsLineProgram = (new globjects::Program());
 	m_footprintProgram = (new globjects::Program());
 	m_vaoCity = (new globjects::VertexArray());
 	m_vaoLine = (new globjects::VertexArray());
@@ -84,6 +89,7 @@ void Painter::initialize()
 	m_fboStaticTransparancy = (new globjects::Framebuffer());
 	m_fboAdaptiveTranspancyPerPixel = (new globjects::Framebuffer());
 	m_fboGhostedView = (new globjects::Framebuffer());
+	m_fboFenceHints = (new globjects::Framebuffer());
 
 	//line vertices
 	m_vaoLineVertices = (new globjects::VertexArray());
@@ -141,6 +147,12 @@ void Painter::setUpShader()
 	);
 	m_outlineHintsProgram->link();
 
+	m_extrudedLinetoABufferOnlyProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/extrudeLines.vert"),
+		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferOnly.frag")
+	);
+	//TODO remove later (maybe)
 	m_extrudeLinesProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/extrudeLines.vert"),
 		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
@@ -206,6 +218,26 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/ghostedView.frag")
 	);
 	m_ghostedViewProgram->link();
+
+	m_fenceHintsProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/fenceHints.frag")
+	);
+	m_fenceHintsProgram->link();
+
+	m_fenceHintsCubeProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
+		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceHintsCube.geom"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
+	);
+	m_fenceHintsCubeProgram->link();
+
+	m_fenceHintsLineProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
+		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceHintsLine.geom"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
+	);
+	m_fenceHintsLineProgram->link();
 
 	m_footprintProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/footprint.vert"),
@@ -317,9 +349,12 @@ void Painter::draw(short renderMode)
 		drawGhostedViewVisualization();
 		break;
 	case 5:
-		drawFullFlatVisualization();
+		drawFenceHintsVisualization();
 		break;
 	case 6:
+		drawFullFlatVisualization();
+		break;
+	case 7:
 		drawFullFootprintVisualization();
 		break;
 	default:
@@ -337,7 +372,6 @@ void Painter::drawNormalScene()
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
-	drawExtrudedLines();
 
 	unsetGlState();
 }
@@ -360,7 +394,8 @@ void Painter::drawOutlineHintsVisualization()
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 	
 	//########## Render extruded line to ABuffer ##############
-	drawToABufferOnly(m_vaoLine, m_vboLineIndices, m_lineIndices_OLD, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
+	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
+	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -509,13 +544,47 @@ void Painter::drawGhostedViewVisualization()
 	drawToSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
-	//########## Render to the Screen ##############
+	//########## Render to the screen ##############
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	m_ghostedViewTextures[0]->bindActive(GL_TEXTURE0);
 	m_ghostedViewTextures[1]->bindActive(GL_TEXTURE1);
 	m_ghostedViewTextures[3]->bindActive(GL_TEXTURE3);
 	drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
+	unsetGlState();
+}
+
+void Painter::drawFenceHintsVisualization()
+{
+	setGlState();
+
+	//########## render fence top components to texture ##############
+	m_fboFenceHints->bind(GL_FRAMEBUFFER);
+	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
+	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
+	//TODO: missing second line
+
+	//########## render city to texture ##############
+	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, true, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	//drawExtrudedLines(c_lineColor);
+	//drawExtrudedLines(c_line2Color);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	
+	//########## render to screen ##############
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_fenceHintsTextures[0]->bindActive(GL_TEXTURE0);
+	m_fenceHintsTextures[1]->bindActive(GL_TEXTURE1);
+	drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
+	
 	unsetGlState();
 }
 
@@ -546,8 +615,11 @@ void Painter::drawFullFootprintVisualization()
 	unsetGlState();
 }
 
-void Painter::drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor, unsigned int typeId)
+void Painter::drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor, unsigned int typeId, GLenum drawMode)
 {
+	if (!vao || !vbo || !program)
+		return;
+
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
 	program->use();
@@ -607,13 +679,16 @@ void Painter::drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer 
 		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
 	}
 
-	vao->drawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()) * 3, GL_UNSIGNED_INT);
+	vao->drawElements(drawMode, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
 	program->release();
 	vao->unbind();
 }
 
 void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
 {
+	if (!vao || !vbo || !program)
+		return;
+
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
 	program->use();
@@ -659,6 +734,7 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 	m_vaoSAQ->bind();
 	program->use();
 
+	//TODO geht das nicht schöner?
 	globjects::ref_ptr<globjects::Buffer> vbo_vertices = new globjects::Buffer();
 	vbo_vertices->bind(GL_ARRAY_BUFFER);
 	vbo_vertices->setData(m_screenAlignedQuad.size() * sizeof(glm::vec3), m_screenAlignedQuad.data(), GL_STATIC_DRAW);
@@ -728,13 +804,12 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 	m_vaoSAQ->unbind();
 }
 
+//TODO Maybe remove later
 void Painter::drawExtrudedLines(glm::vec4 specifiedColor)
 {
 	m_vaoLineVertices->bind();
 	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
 	m_extrudeLinesProgram->use();
-
-	glLineWidth(4.f);
 
 	//get uniform locations
 	GLint loc_model = m_extrudeLinesProgram->getUniformLocation("model");
@@ -768,6 +843,53 @@ void Painter::drawExtrudedLines(glm::vec4 specifiedColor)
 	m_vaoLineVertices->unbind();
 }
 
+void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int>& indices, globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor, GLenum drawMode)
+{
+	if (!vao || !vbo || !program)
+		return;
+
+	vao->bind();
+	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
+	program->use();
+
+	//get uniform locations
+	GLint loc_model = program->getUniformLocation("model");
+	GLint loc_view = program->getUniformLocation("view");
+	GLint loc_projection = program->getUniformLocation("projection");
+	GLint loc_specifiedColor = program->getUniformLocation("specifiedColor");
+	GLint loc_renderDepthValueForTextureUsage = program->getUniformLocation("renderDepthValueForTextureUsage");
+
+	//bind uniforms
+	if (loc_model >= 0)
+		program->setUniform(loc_model, m_model);
+	if (loc_view >= 0)
+		program->setUniform(loc_view, m_view);
+	if (loc_projection >= 0)
+		program->setUniform(loc_projection, m_projection);
+	if (loc_specifiedColor >= 0)
+		program->setUniform(loc_specifiedColor, specifiedColor);
+	if (loc_renderDepthValueForTextureUsage >= 0)
+		program->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
+
+	if (textures)
+	{
+		for (int i = 0; i < textures->size(); i++)
+		{
+			GLint loc_texture = program->getUniformLocation(std::string("texture").append(std::to_string(i)));
+
+			if (loc_texture >= 0)
+			{
+				textures->at(i)->bindActive(GL_TEXTURE + i);
+				program->setUniform(loc_texture, i);
+			}
+		}
+	}
+
+	vao->drawElements(drawMode, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
+	program->release();
+	vao->unbind();
+}
+
 void Painter::setUpMatrices()
 {
 	m_model = glm::mat4x4(1.0f, 0.0f, 0.0f, 0.0f,
@@ -798,6 +920,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboStaticTransparancy, nullptr, 0);
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
+	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 2);
 }
 
 void Painter::setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures)

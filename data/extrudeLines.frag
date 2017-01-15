@@ -1,8 +1,25 @@
 #version 330 core
 
-out vec4 color;
+uniform vec4 specifiedColor;
+uniform bool renderDepthValueForTextureUsage;
+
+out vec4 FragColor;
 
 void main()
 {
-    color = vec4(0.0f, 1.0f, 0.0f, 1.0f);   
+	//Linearization of the depth value
+	float f = 200.0;
+	float n = 0.1f;
+	float depthValue = (2 * n) / (f + n - gl_FragCoord.z * (f - n));
+	
+	vec4 color = specifiedColor;
+	
+	if(renderDepthValueForTextureUsage)
+	{
+		FragColor = vec4(color.rgb, depthValue);
+	}
+	else
+	{
+		FragColor = color;
+	}  
 }  

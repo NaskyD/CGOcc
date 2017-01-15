@@ -20,7 +20,7 @@ namespace{
 	bool g_isFS = false;
 	short g_renderMode = 0;
 	const int c_windowWidth = 1024;//1920;//1024;
-	const int c_windowHeight = 768;// 1080;// 768;
+		const int c_windowHeight = 768;//1080;// 768;
 	Painter g_painter(c_windowWidth, c_windowHeight);
 }
 
@@ -46,6 +46,8 @@ void key_callback(GLFWwindow * window, int key, int /*scancode*/, int action, in
 		g_renderMode = 5;
 	else if (key == GLFW_KEY_7 && action == GLFW_RELEASE)
 		g_renderMode = 6;
+	else if (key == GLFW_KEY_8 && action == GLFW_RELEASE)
+		g_renderMode = 7;
 }
 
 void window_size_callback(GLFWwindow * window, int width, int height)
@@ -56,9 +58,8 @@ void window_size_callback(GLFWwindow * window, int width, int height)
 void setResizeCallback(GLFWwindow * window, Painter & painter)
 {
 	//glfwSetWindowSizeCallback(window, &painter.resizeWindow);
-	std::function <void(GLFWwindow*, int, int)> fn = [painter](GLFWwindow * window, int width, int height) mutable {painter.resizeWindow(width, height); };
-	glfwSetWindowSizeCallback(window, window_size_callback);// std::function<void(GLFWwindow*, int, int)>{[painter](GLFWwindow * window, int width, int height) mutable {painter.resizeWindow(width, height); }});
-
+	//std::function <void(GLFWwindow*, int, int)> fn = [&painter](GLFWwindow * window, int width, int height) mutable {painter.resizeWindow(width, height); };
+	glfwSetFramebufferSizeCallback(window, window_size_callback);
 }
 
 GLFWwindow * createWindow(bool fs = false)
@@ -70,7 +71,7 @@ GLFWwindow * createWindow(bool fs = false)
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, true);
 
 	// Create a context and, if valid, make it current
-	GLFWwindow * window = glfwCreateWindow(fs ? 1920 : c_windowHeight, fs ? 1080 : c_windowHeight, "Occlusion Management", fs ? glfwGetPrimaryMonitor() : NULL, NULL);
+	GLFWwindow * window = glfwCreateWindow(fs ? 1920 : c_windowWidth, fs ? 1080 : c_windowHeight, "Occlusion Management", fs ? glfwGetPrimaryMonitor() : NULL, NULL);
 	if (window == nullptr)
 	{
 		globjects::critical() << "Context creation failed. Terminate execution.";
@@ -114,6 +115,7 @@ int main(int /*argc*/, char * /*argv*/[])
 {
 	glfwInit();
 	GLFWwindow * window = createWindow(false);
+	glViewport(0, 0, c_windowWidth, c_windowHeight);
 	setResizeCallback(window, g_painter);
 	g_painter.initialize();
 
@@ -126,6 +128,7 @@ int main(int /*argc*/, char * /*argv*/[])
 		{
 			destroyWindow(window);
 			window = createWindow(!g_isFS);
+			glViewport(0, 0, c_windowWidth, c_windowHeight);
 			setResizeCallback(window, g_painter);
 
 			g_toggleFS = false;
