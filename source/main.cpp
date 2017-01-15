@@ -48,6 +48,12 @@ void key_callback(GLFWwindow * window, int key, int /*scancode*/, int action, in
 		g_renderMode = 6;
 	else if (key == GLFW_KEY_8 && action == GLFW_RELEASE)
 		g_renderMode = 7;
+	else if (key == GLFW_KEY_Q && action == GLFW_RELEASE)
+		g_renderMode = 10;
+	else if (key == GLFW_KEY_W && action == GLFW_RELEASE)
+		g_renderMode = 11;
+	else if (key == GLFW_KEY_E && action == GLFW_RELEASE)
+		g_renderMode = 12;
 }
 
 void window_size_callback(GLFWwindow * window, int width, int height)

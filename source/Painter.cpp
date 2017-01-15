@@ -70,6 +70,8 @@ void Painter::initialize()
 	m_fenceHintsCubeProgram = (new globjects::Program());
 	m_fenceHintsLineProgram = (new globjects::Program());
 	m_footprintProgram = (new globjects::Program());
+	m_perspectiveDepthMaskProgram = (new globjects::Program());
+	m_mixByMaskProgram = (new globjects::Program());
 	m_vaoCity = (new globjects::VertexArray());
 	m_vaoLine = (new globjects::VertexArray());
 	m_vaoLine2 = (new globjects::VertexArray());
@@ -90,6 +92,7 @@ void Painter::initialize()
 	m_fboAdaptiveTranspancyPerPixel = (new globjects::Framebuffer());
 	m_fboGhostedView = (new globjects::Framebuffer());
 	m_fboFenceHints = (new globjects::Framebuffer());
+	m_fboPerspectiveDepthMask = (new globjects::Framebuffer());
 
 	//line vertices
 	m_vaoLineVertices = (new globjects::VertexArray());
@@ -152,6 +155,7 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferOnly.frag")
 	);
+	m_extrudedLinetoABufferOnlyProgram->link();
 
 	m_haloLineABufferedProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
@@ -239,12 +243,25 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceGradient.geom"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/fenceGradient.frag")
 	);
+	m_fenceGradientProgram->link();
 
 	m_footprintProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/footprint.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
 	);
 	m_ghostedViewProgram->link();
+
+	m_mixByMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixByMask.frag")
+	);
+	m_mixByMaskProgram->link();
+
+	m_perspectiveDepthMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/depthMask.frag")
+	);
+	m_perspectiveDepthMaskProgram->link();
 }
 
 void Painter::loadGeometry()
@@ -358,6 +375,15 @@ void Painter::draw(short renderMode)
 	case 7:
 		drawFullFootprintVisualization();
 		break;
+	case 10:
+		mix_outlineHints_adaptiveTransparancy_onDepth();
+		break;
+	case 11:
+		;
+		break;
+	case 12:
+		;
+		break;
 	default:
 		break;
 	}
@@ -387,6 +413,7 @@ void Painter::drawOutlineHintsVisualization()
 
 	//########## Render city+plane+streets image to FBO ##############
 	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
@@ -421,13 +448,15 @@ void Painter::drawOutlineHintsVisualization()
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render halo from line2 image to FBO ##############
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 		m_currentHaloColor = c_line2Color;
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
-	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render to the Screen ##############
@@ -448,6 +477,7 @@ void Painter::drawStaticTransparancyVisualization()
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
+	//TODO: does it really need an own fbo?
 	m_fboStaticTransparancy->bind(GL_FRAMEBUFFER);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, true, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0);
@@ -549,6 +579,7 @@ void Painter::drawGhostedViewVisualization()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	m_ghostedViewTextures[0]->bindActive(GL_TEXTURE0);
 	m_ghostedViewTextures[1]->bindActive(GL_TEXTURE1);
+	//TODO what happend to number 2???
 	m_ghostedViewTextures[3]->bindActive(GL_TEXTURE3);
 	drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
@@ -618,6 +649,141 @@ void Painter::drawFullFootprintVisualization()
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+
+	unsetGlState();
+}
+
+void Painter::mix_outlineHints_adaptiveTransparancy_onDepth()
+{
+	//TODO: allgemeinerer Ansatz: mixOnDepth(enum ...) der die Visualizierungen spezifiziert
+	setGlState();
+	
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawToSAQ(m_perspectiveDepthMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//++ first visualization ++
+	//########## clear A-Buffer and IndexImage #############
+	drawToSAQ(m_clearABufferProgram, nullptr);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## Render city+plane+streets image to FBO ##############
+	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+
+	//########## Render extruded line to ABuffer ##############
+	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
+	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//########## Render halo image to FBO ##############
+	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+	m_currentHaloColor = c_lineColor;
+
+	drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+
+	if (c_twoLines)
+	{
+		//########## clear A-Buffer and IndexImage #############
+		drawToSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		//########## Render extruded line2 to ABuffer ##############
+		drawToABufferOnly(m_vaoLine2, m_vboLine2Indices, m_line2Indices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		//########## Render halo from line2 image to FBO ##############
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+		m_currentHaloColor = c_line2Color;
+		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+	}
+	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//########## Render to mixture_FBO texture ##############
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+	m_outlineHintsTextures.at(1)->bindActive(GL_TEXTURE1);
+	m_outlineHintsTextures.at(2)->bindActive(GL_TEXTURE2);
+	drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	unsetGlState();
+
+	//++ second visualization ++
+	//########## clear A-Buffer and IndexImage #############
+	setGlState();
+	drawToSAQ(m_clearABufferProgram, nullptr);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render city to A-Buffer ############
+	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, false);
+	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, false, c_planeColor, 1);
+	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, false, c_streetsColor, 2);
+	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, false, c_lineColor, 3);
+	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, false, c_line2Color, 3);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render transparancy mask texture ############
+	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	
+	//########## enhance transparancy mask texture with box-filter ############
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawToSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
+	
+	//########## render city & flatLines to texture ############
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	
+	//########## Render to mixture_FBO texture ##############
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_adaptiveTransparancyPerPixelTextures[0]->bindActive(GL_TEXTURE0);
+	m_adaptiveTransparancyPerPixelTextures[1]->bindActive(GL_TEXTURE1);
+	m_adaptiveTransparancyPerPixelTextures[2]->bindActive(GL_TEXTURE2);
+	drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	unsetGlState();
+
+	//++ mixing both visualizations ++
+	setGlState();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(0)->bindActive(GL_TEXTURE0);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(1)->bindActive(GL_TEXTURE1);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(2)->bindActive(GL_TEXTURE2);
+	drawToSAQ(m_mixByMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
 
 	unsetGlState();
 }
@@ -920,6 +1086,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
 	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 2);
+	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
 }
 
 void Painter::setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures)

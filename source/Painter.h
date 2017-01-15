@@ -71,6 +71,9 @@ protected:
 	void drawFenceHintsVisualization();
 	void drawFullFlatVisualization();
 	void drawFullFootprintVisualization();
+
+	//mixtures of techniques
+	void mix_outlineHints_adaptiveTransparancy_onDepth();
 	
 	void drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0u, gl::GLenum drawMode = gl::GL_TRIANGLES);
 	void drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
@@ -92,7 +95,7 @@ protected:
 protected:
 	MeshLoader m_meshLoader;
 
-	//#### visualization techniques
+	//#### visualization techniques ####
 	globjects::ref_ptr<globjects::Program> m_generalProgram;
 	globjects::ref_ptr<globjects::Program> m_outlineHintsProgram;
 	globjects::ref_ptr<globjects::Program> m_transparentCityProgram;
@@ -101,7 +104,7 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_fenceHintsProgram;
 	globjects::ref_ptr<globjects::Program> m_footprintProgram;
 
-	//#### helper programs ####
+	//#### helper programs for single visualizations ####
 	globjects::ref_ptr<globjects::Program> m_haloLineABufferedProgram;
 	globjects::ref_ptr<globjects::Program> m_toABufferOnlyProgram;
 	globjects::ref_ptr<globjects::Program> m_extrudedLinetoABufferOnlyProgram;
@@ -113,6 +116,12 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_fenceHintsCubeProgram;
 	globjects::ref_ptr<globjects::Program> m_fenceHintsLineProgram;
 	globjects::ref_ptr<globjects::Program> m_fenceGradientProgram;
+
+	//#### mix of visualizations ####
+	globjects::ref_ptr<globjects::Program> m_mixByMaskProgram;
+
+	//#### helper programs for comining visualizations ####
+	globjects::ref_ptr<globjects::Program> m_perspectiveDepthMaskProgram;
 
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine;
@@ -136,6 +145,7 @@ protected:
 	globjects::ref_ptr<globjects::Framebuffer> m_fboAdaptiveTranspancyPerPixel;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboGhostedView;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboFenceHints;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
 
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
 	gl::GLuint m_transparentCityTexture;
@@ -144,6 +154,8 @@ protected:
 	std::vector <globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
 	gl::GLuint m_aBufferTextureArrayID;
 	gl::GLuint m_aBufferIndexTexture;
+
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
 
 	std::vector<glm::vec3> m_cityVertices;
 	std::vector<glm::vec3> m_lineVertices_OLD;
