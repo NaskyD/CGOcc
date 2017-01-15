@@ -55,7 +55,7 @@ void Painter::initialize()
 	m_generalProgram = (new globjects::Program());
 	m_outlineHintsProgram = (new globjects::Program());
 	m_extrudedLinetoABufferOnlyProgram = (new globjects::Program());
-	m_extrudeLinesProgram = (new globjects::Program());
+	m_fenceGradientProgram = (new globjects::Program());
 	m_haloLineABufferedProgram = (new globjects::Program());
 	m_clearABufferProgram = (new globjects::Program());
 	m_sortABufferProgram = (new globjects::Program());
@@ -148,15 +148,9 @@ void Painter::setUpShader()
 	m_outlineHintsProgram->link();
 
 	m_extrudedLinetoABufferOnlyProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/extrudeLines.vert"),
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
 		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferOnly.frag")
-	);
-	//TODO remove later (maybe)
-	m_extrudeLinesProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/extrudeLines.vert"),
-		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/extrudeLines.frag")
 	);
 
 	m_haloLineABufferedProgram->attach(
@@ -238,6 +232,13 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
 	);
 	m_fenceHintsLineProgram->link();
+
+	//TODO: fenceGradient.geom und extrudeLines.geom unterscheiden sich nur in der Höhe
+	m_fenceGradientProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
+		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceGradient.geom"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/fenceGradient.frag")
+	);
 
 	m_footprintProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/footprint.vert"),
@@ -560,22 +561,23 @@ void Painter::drawFenceHintsVisualization()
 
 	//########## render fence top components to texture ##############
 	m_fboFenceHints->bind(GL_FRAMEBUFFER);
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
 	//TODO: missing second line
 
 	//########## render city to texture ##############
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, true, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
-	//drawExtrudedLines(c_lineColor);
-	//drawExtrudedLines(c_line2Color);
+	//TODO verallgemeinern
+	drawFenceGradient(true, c_lineColor);
+	//drawFenceGradient(c_line2Color);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	
@@ -805,41 +807,33 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 }
 
 //TODO Maybe remove later
-void Painter::drawExtrudedLines(glm::vec4 specifiedColor)
+void Painter::drawFenceGradient(bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
 {
 	m_vaoLineVertices->bind();
 	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
-	m_extrudeLinesProgram->use();
+	m_fenceGradientProgram->use();
 
 	//get uniform locations
-	GLint loc_model = m_extrudeLinesProgram->getUniformLocation("model");
-	GLint loc_view = m_extrudeLinesProgram->getUniformLocation("view");
-	GLint loc_projection = m_extrudeLinesProgram->getUniformLocation("projection");
-	GLint loc_viewVector = m_extrudeLinesProgram->getUniformLocation("viewVector");
-	GLint loc_lightVector = m_extrudeLinesProgram->getUniformLocation("lightVector");
-	GLint loc_lightVector2 = m_extrudeLinesProgram->getUniformLocation("lightVector2");
-	GLint loc_useNormals = m_extrudeLinesProgram->getUniformLocation("useNormals");
-	GLint loc_specifiedColor = m_extrudeLinesProgram->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = m_extrudeLinesProgram->getUniformLocation("renderDepthValueForTextureUsage");
+	GLint loc_model = m_fenceGradientProgram->getUniformLocation("model");
+	GLint loc_view = m_fenceGradientProgram->getUniformLocation("view");
+	GLint loc_projection = m_fenceGradientProgram->getUniformLocation("projection");
+	GLint loc_specifiedColor = m_fenceGradientProgram->getUniformLocation("specifiedColor");
+	GLint loc_renderDepthValueForTextureUsage = m_fenceGradientProgram->getUniformLocation("renderDepthValueForTextureUsage");
 
 	//bind uniforms
 	if (loc_model >= 0)
-		m_extrudeLinesProgram->setUniform(loc_model, m_model);
+		m_fenceGradientProgram->setUniform(loc_model, m_model);
 	if (loc_view >= 0)
-		m_extrudeLinesProgram->setUniform(loc_view, m_view);
+		m_fenceGradientProgram->setUniform(loc_view, m_view);
 	if (loc_projection >= 0)
-		m_extrudeLinesProgram->setUniform(loc_projection, m_projection);
-	if (loc_viewVector >= 0)
-		m_extrudeLinesProgram->setUniform(loc_viewVector, glm::vec3(m_camera.center - m_camera.eye));
-	if (loc_lightVector >= 0)
-		m_extrudeLinesProgram->setUniform(loc_lightVector, m_sceneLight1);
-	if (loc_lightVector2 >= 0)
-		m_extrudeLinesProgram->setUniform(loc_lightVector2, m_sceneLight2);
-	if (loc_useNormals >= 0)
-		m_extrudeLinesProgram->setUniform(loc_useNormals, false);
+		m_fenceGradientProgram->setUniform(loc_projection, m_projection);
+	if (loc_specifiedColor >= 0)
+		m_fenceGradientProgram->setUniform(loc_specifiedColor, specifiedColor);
+	if (loc_renderDepthValueForTextureUsage >= 0)
+		m_fenceGradientProgram->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
 
 	m_vaoLineVertices->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(m_lineIndices.size()), GL_UNSIGNED_INT);
-	m_extrudeLinesProgram->release();
+	m_fenceGradientProgram->release();
 	m_vaoLineVertices->unbind();
 }
 

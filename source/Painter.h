@@ -75,7 +75,7 @@ protected:
 	void drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0u, gl::GLenum drawMode = gl::GL_TRIANGLES);
 	void drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 	void drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures);
-	void drawExtrudedLines(glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
+	void drawFenceGradient(bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 	void drawWithLineRepresentation(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), gl::GLenum drawMode = gl::GL_LINE_STRIP);
 
 	void setGlState();
@@ -99,12 +99,9 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_adaptiveTransparancyPerPixelProgram;
 	globjects::ref_ptr<globjects::Program> m_ghostedViewProgram;
 	globjects::ref_ptr<globjects::Program> m_fenceHintsProgram;
-	globjects::ref_ptr<globjects::Program> m_fenceHintsCubeProgram;
-	globjects::ref_ptr<globjects::Program> m_fenceHintsLineProgram;
 	globjects::ref_ptr<globjects::Program> m_footprintProgram;
 
 	//#### helper programs ####
-	globjects::ref_ptr<globjects::Program> m_extrudeLinesProgram;
 	globjects::ref_ptr<globjects::Program> m_haloLineABufferedProgram;
 	globjects::ref_ptr<globjects::Program> m_toABufferOnlyProgram;
 	globjects::ref_ptr<globjects::Program> m_extrudedLinetoABufferOnlyProgram;
@@ -113,6 +110,9 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_toABufferTypedProgram;
 	globjects::ref_ptr<globjects::Program> m_maskingBoxFilterForAdaptiveTransparancyProgram;
 	globjects::ref_ptr<globjects::Program> m_maskingBoxFilterForGhostedViewProgram;
+	globjects::ref_ptr<globjects::Program> m_fenceHintsCubeProgram;
+	globjects::ref_ptr<globjects::Program> m_fenceHintsLineProgram;
+	globjects::ref_ptr<globjects::Program> m_fenceGradientProgram;
 
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine;

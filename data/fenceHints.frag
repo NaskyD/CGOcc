@@ -24,9 +24,14 @@ void main()
 	vec4 fence = texture(texture0, v_screenAlignedQuad_UV);
 	vec4 city = texture(texture1, v_screenAlignedQuad_UV);
 	
+	//TODO: geht das nicht schöner?
+	
+	color = mix(city, fence, step(fence.a, 1.0 - fence.a));//1.0 - fence.a);
+	
+	if (bool(step(fence.a, 1.0 - fence.a)) && city.a <= fence.a)
+	{
+		color = mix(city, fence, 0.4);
+	}
 
-		color = mix(city, fence, fence.a);
-
-	color = vec4(vec3(fence.a), 1.0);
 	FragColor = color;
 }

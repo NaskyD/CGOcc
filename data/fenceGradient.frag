@@ -1,10 +1,13 @@
-#version 330 core
+#version 430
 
 uniform vec4 specifiedColor;
 uniform bool renderDepthValueForTextureUsage;
 
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
 
+//TODO: set from outside
+float height = 10.0;
+ 
 void main()
 {
 	//Linearization of the depth value
@@ -14,6 +17,10 @@ void main()
 	
 	vec4 color = specifiedColor;
 	
+	//TODO!!!!!!!!!!!!!!
+	float fragmentHeight = 1.0;
+	color.a = smoothstep(0.0, 1.0, fragmentHeight);
+	
 	if(renderDepthValueForTextureUsage)
 	{
 		FragColor = vec4(color.rgb, depthValue);
@@ -21,5 +28,5 @@ void main()
 	else
 	{
 		FragColor = color;
-	}  
-}  
+	}
+}
