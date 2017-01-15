@@ -1,12 +1,16 @@
 #version 430
 
+in float g_currentHeight;
+in vec3 pointColor;
+
 uniform vec4 specifiedColor;
 uniform bool renderDepthValueForTextureUsage;
 
 layout (location = 0) out vec4 FragColor;
 
 //TODO: set from outside
-float height = 10.0;
+const float minHeight = -0.7704;
+const float maxHeight = 10.0;
  
 void main()
 {
@@ -17,16 +21,19 @@ void main()
 	
 	vec4 color = specifiedColor;
 	
-	//TODO!!!!!!!!!!!!!!
-	float fragmentHeight = 1.0;
-	color.a = smoothstep(0.0, 1.0, fragmentHeight);
+	float fragmentRelativeHeight = (g_currentHeight - minHeight) / (maxHeight - minHeight);
+	float factor = 1 - fragmentRelativeHeight;
+	color.a = pow(smoothstep(0.0, 1.0, factor), 2);
 	
-	if(renderDepthValueForTextureUsage)
-	{
-		FragColor = vec4(color.rgb, depthValue);
-	}
-	else
-	{
+	//TODO: remove, if it really is not important
+	//if(renderDepthValueForTextureUsage)
+	//{
+		//FragColor = vec4(color.rgb, depthValue);
+		//FragColor = vec4(vec3(color.a), color.a);
+		//FragColor = color;
+	//}
+	//else
+	//{
 		FragColor = color;
-	}
+	//}
 }

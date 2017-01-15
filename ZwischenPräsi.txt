@@ -1,1 +1,2 @@
 Fence hints die sich überdecken - Problematik
+Fence hints alpha blending fehler

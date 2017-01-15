@@ -26,7 +26,7 @@ void main()
 	
 	//TODO: geht das nicht schöner?
 	
-	color = mix(city, fence, step(fence.a, 1.0 - fence.a));//1.0 - fence.a);
+	color = mix(city, fence, step(fence.a, 1.0 - fence.a));
 	
 	if (bool(step(fence.a, 1.0 - fence.a)) && city.a <= fence.a)
 	{

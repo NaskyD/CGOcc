@@ -558,13 +558,15 @@ void Painter::drawGhostedViewVisualization()
 void Painter::drawFenceHintsVisualization()
 {
 	setGlState();
-
+	//alles zusammen in einem durchlauf möglich -> keine extra Texturen??
 	//########## render fence top components to texture ##############
 	m_fboFenceHints->bind(GL_FRAMEBUFFER);
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
+	glLineWidth(3.0f);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
+	glLineWidth(1.0f);
 	//TODO: missing second line
 
 	//########## render city to texture ##############
@@ -572,12 +574,15 @@ void Painter::drawFenceHintsVisualization()
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
-	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, true, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 	//TODO verallgemeinern
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	drawFenceGradient(true, c_lineColor);
 	//drawFenceGradient(c_line2Color);
+	glDisable(GL_BLEND);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	
