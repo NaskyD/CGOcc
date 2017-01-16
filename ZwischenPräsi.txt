@@ -1,2 +1,6 @@
 Fence hints die sich überdecken - Problematik
 Fence hints alpha blending fehler
+
+Übergang zwischen zwei Techniken - Smoothen
+
+Computervision (keine Geometriebetrachtung)

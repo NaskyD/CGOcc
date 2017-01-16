@@ -589,15 +589,15 @@ void Painter::drawGhostedViewVisualization()
 void Painter::drawFenceHintsVisualization()
 {
 	setGlState();
-	//alles zusammen in einem durchlauf möglich -> keine extra Texturen??
+	//TODO: Viel. alles zusammen in einem Durchlauf möglich -> keine extra Texturen??
 	//########## render fence top components to texture ##############
 	m_fboFenceHints->bind(GL_FRAMEBUFFER);
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
-	glLineWidth(3.0f);
+	//glLineWidth(3.0f);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
-	glLineWidth(1.0f);
+	//glLineWidth(1.0f);
 	//TODO: missing second line
 
 	//########## render city to texture ##############

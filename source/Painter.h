@@ -33,7 +33,7 @@ namespace
 	const int c_aBufferMaxLayers = 16;
 	const double PI = std::atan(1) * 4;
 	const bool c_twoLines = true;
-	const bool c_printFPS = false;
+	const bool c_printFPS = true;
 	//TODO setFenceHintsHeight outside of shader
 	const glm::vec4 c_planeColor(0.25f, 0.25f, 0.25f, 1.f);
 	const glm::vec4 c_streetsColor(0.1f, 0.1f, 0.1f, 1.f);
