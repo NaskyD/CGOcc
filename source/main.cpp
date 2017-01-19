@@ -142,7 +142,7 @@ int main(int /*argc*/, char * /*argv*/[])
 
 		g_painter.draw(g_renderMode);
 		glfwSwapBuffers(window);
-		//glfwSwapInterval(0);		for performance messures
+		glfwSwapInterval(0);		//for performance messures
 	}
 
 	// Properly shutdown GLFW

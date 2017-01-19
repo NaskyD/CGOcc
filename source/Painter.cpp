@@ -169,6 +169,7 @@ void Painter::setUpShader()
 	);
 	m_clearABufferProgram->link();
 
+	//Not used?
 	m_sortABufferProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/sortABuffer.frag")
@@ -486,6 +487,8 @@ void Painter::drawStaticTransparancyVisualization()
 	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3);
 	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//drawToSAQ(m_sortABufferProgram, nullptr);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render to the Screen ##############
@@ -509,6 +512,8 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization()
 	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, false, c_lineColor, 3);
 	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, false, c_line2Color, 3);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//drawToSAQ(m_sortABufferProgram, nullptr);
 
 	//########## render transparancy mask texture ############
 	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
