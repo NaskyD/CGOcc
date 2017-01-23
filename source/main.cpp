@@ -11,7 +11,7 @@
 #include<globjects\globjects.h>
 #include<globjects/base/File.h>
 
-#include<Painter.h>
+#include "Painter.h"
 
 using namespace gl;
 

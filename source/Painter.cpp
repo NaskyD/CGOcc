@@ -33,10 +33,6 @@ Painter::Painter(int initialWindowWidth, int initialWindowHeight)
 {
 }
 
-Painter::~Painter()
-{
-}
-
 void Painter::resizeWindow(int width, int height)
 {
 	m_windowWidth = width;

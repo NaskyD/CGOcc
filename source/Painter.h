@@ -10,7 +10,7 @@
 #include <globjects\Framebuffer.h>
 #include <globjects\Texture.h>
 
-#include <MeshLoader.h>
+#include "MeshLoader.h"
 
 namespace Camera
 {
@@ -47,7 +47,6 @@ class Painter
 {
 public:
     Painter(int initialWindowWidth, int initialWindowHeight);
-    virtual ~Painter();
 
 	void resizeWindow(int width, int height);
 

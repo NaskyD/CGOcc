@@ -1,4 +1,4 @@
-#include<MeshLoader.h>
+#include "MeshLoader.h"
 
 #include <fstream>
 #include <string>
@@ -13,11 +13,6 @@ namespace {
 
 MeshLoader::MeshLoader()
 	: m_importer()
-	, m_scene(nullptr)
-{
-}
-
-MeshLoader::~MeshLoader()
 {
 }
 
@@ -45,13 +40,16 @@ void MeshLoader::getLineVertices(std::vector<glm::vec3> & verticesContainer, std
 
 bool MeshLoader::getVertices(std::vector<glm::vec3> & verticesContainer, std::vector<glm::vec3> & lineVerticesContainer, std::vector<glm::vec3> & lineVerticesSecondContainer, std::vector<glm::vec3> & flatLineVerticesContainer, std::vector<glm::vec3> & flatSecondLineVerticesContainer, std::vector<glm::vec3> & planeVerticesContainer, std::vector<glm::vec3> & streetsVerticesContainer)
 {
-	if (!m_scene)
+	
+	if (!m_importer.GetScene())
 		return false;
 
+	const aiScene & scene = *m_importer.GetScene();
+
 	// For each mesh
-	for (unsigned int n = 0; n < m_scene->mNumMeshes; ++n)
+	for (unsigned int n = 0; n < scene.mNumMeshes; ++n)
 	{
-		const aiMesh * mesh = m_scene->mMeshes[n];
+		const aiMesh * mesh = scene.mMeshes[n];
 		if (!mesh)
 			return false;
 
@@ -94,15 +92,16 @@ bool MeshLoader::getVertices(std::vector<glm::vec3> & verticesContainer, std::ve
 
 bool MeshLoader::getIndices(std::vector<unsigned int> & indicesContainer, std::vector<unsigned int> & lineIndicesContainer, std::vector<unsigned int> & lineIndicesSecondContainer, std::vector<unsigned int> & flatLineIndicesContainer, std::vector<unsigned int> & flatSecondLineIndicesContainer, std::vector<unsigned int> & planeIndicesContainer, std::vector<unsigned int> & streetsIndicesContainer)
 {
-	if (!m_scene)
+	if (!m_importer.GetScene())
 		return false;
 
+	const aiScene & scene = *m_importer.GetScene();
 	unsigned int vertexCount = 0;
 
 	// For each mesh
-	for (unsigned int n = 0; n < m_scene->mNumMeshes; ++n)
+	for (unsigned int n = 0; n < scene.mNumMeshes; ++n)
 	{
-		const aiMesh * mesh = m_scene->mMeshes[n];
+		const aiMesh * mesh = scene.mMeshes[n];
 
 		if (strcmp(mesh->mName.C_Str(), "g Line") == 0)
 		{
@@ -182,13 +181,15 @@ bool MeshLoader::getIndices(std::vector<unsigned int> & indicesContainer, std::v
 
 bool MeshLoader::getNormals(std::vector<glm::vec3> & normalsContainer)
 {
-	if (!m_scene)
+	if (!m_importer.GetScene())
 		return false;
 
+	const aiScene & scene = *m_importer.GetScene();
+
 	// For each mesh
-	for (unsigned int n = 0; n < m_scene->mNumMeshes; ++n)
+	for (unsigned int n = 0; n < scene.mNumMeshes; ++n)
 	{
-		const aiMesh * mesh = m_scene->mMeshes[n];
+		const aiMesh * mesh = scene.mMeshes[n];
 		if (strcmp(mesh->mName.C_Str(), "g GroundPlane") == 0)
 			continue;
 		if (strcmp(mesh->mName.C_Str(), "g Streets") == 0)
@@ -225,11 +226,11 @@ bool MeshLoader::import3DFromFile(const std::string & file)
 		printf("%s\n", m_importer.GetErrorString());
 		return false;
 	}
-
-	m_scene = (m_importer.ReadFile(file, aiProcessPreset_TargetRealtime_Quality));
+	
+	m_importer.ReadFile(file, aiProcessPreset_TargetRealtime_Quality);
 
 	// If the import failed, report it
-	if (!m_scene)
+	if (!m_importer.GetScene())
 	{
 		printf("%s\n", m_importer.GetErrorString());
 		return false;

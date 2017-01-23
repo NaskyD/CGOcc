@@ -1,45 +1,19 @@
 #pragma once
 
-#include<vector>
-#include<memory>
+#include <vector>
+#include <memory>
 
 #include <glm\vec3.hpp>
 
-#include<glbinding\gl\gl.h>
+#include <glbinding\gl\gl.h>
 
 #include "assimp/Importer.hpp"
 #include "assimp/Scene.h"
-
-namespace
-{
-	// Information to render each assimp node
-	struct MyMesh
-	{
-		gl::GLuint vao;
-		gl::GLuint texIndex;
-		gl::GLuint uniformBlockIndex;
-		int numFaces;
-	};
-
-	std::vector<struct MyMesh> myMeshes;
-}
-
-namespace GeometryUtils
-{
-	struct vec3 {
-		float x, y, z;
-	};
-
-	struct ivec3 {
-		unsigned int x, y, z;
-	};
-}
 
 class MeshLoader
 {
 public:
 	MeshLoader();
-	virtual ~MeshLoader();
 
 	//ownership shifts to painter
 	void getLineVertices(std::vector<glm::vec3> & verticesContainer, std::vector<unsigned int> & lineIndicesContainer);
@@ -55,5 +29,4 @@ protected:
 
 protected:
 	Assimp::Importer m_importer;
-	const aiScene * m_scene;
 };
