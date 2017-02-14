@@ -58,21 +58,22 @@ public:
 									std::vector<glm::vec3> & vertices,
 									std::vector<unsigned int> & indices, bool useNormals);
 
+	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false);
 	void draw(short renderMode);
 
 protected:
 	//techniques
-	void drawNormalScene();
-	void drawOutlineHintsVisualization();
-	void drawStaticTransparancyVisualization();
-	void drawAdaptiveTransparancyPerPixelVisualization();
-	void drawGhostedViewVisualization();
-	void drawFenceHintsVisualization();
-	void drawFullFlatVisualization();
-	void drawFullFootprintVisualization();
+	void drawNormalScene(bool inputChanged);
+	void drawOutlineHintsVisualization(bool inputChanged);
+	void drawStaticTransparancyVisualization(bool inputChanged);
+	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged);
+	void drawGhostedViewVisualization(bool inputChanged);
+	void drawFenceHintsVisualization(bool inputChanged);
+	void drawFullFlatVisualization(bool inputChanged);
+	void drawFullFootprintVisualization(bool inputChanged);
 
 	//mixtures of techniques
-	void mix_outlineHints_adaptiveTransparancy_onDepth();
+	void mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged);
 	
 	void drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0u, gl::GLenum drawMode = gl::GL_TRIANGLES);
 	void drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
@@ -82,6 +83,12 @@ protected:
 
 	void setGlState();
 	void unsetGlState();
+
+	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const bool value) const;
+	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const int value) const;
+	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::vec3 & value) const;
+	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::vec4 & value) const;
+	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::mat4x4 & value) const;
 
 	void loadGeometry();
 	void setUpMatrices();
@@ -199,5 +206,7 @@ protected:
 	int m_windowWidth;
 	int m_windowHeight;
 
+	unsigned short m_renderMode;
+	bool m_inputChanged;
 	bool m_timeValid;
 };

@@ -29,6 +29,8 @@ Painter::Painter(int initialWindowWidth, int initialWindowHeight)
 	, m_renderCallsCount(0)
 	, m_windowWidth(initialWindowWidth)
 	, m_windowHeight(initialWindowHeight)
+	, m_renderMode(0)
+	, m_inputChanged(true)
 	, m_timeValid(true)
 {
 }
@@ -93,6 +95,8 @@ void Painter::initialize()
 	//line vertices
 	m_vaoLineVertices = (new globjects::VertexArray());
 	m_vboLineVertices = (new globjects::Buffer());
+
+	loadGeometryToGPU(m_vaoSAQ, m_vbo, m_screenAlignedQuad, , false);
 
 	loadGeometryToGPU(m_vaoCity, m_vboCityIndices, m_cityVertices, m_cityIndices, true);
 	loadGeometryToGPU(m_vaoPlane, m_vboPlaneIndices, m_planeVertices, m_planeIndices, false);
@@ -314,18 +318,24 @@ void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao
 	vao->unbind();
 }
 
-void Painter::setGlState()
+void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged)
 {
-	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glEnable(GL_DEPTH_TEST);
-	glCullFace(GL_BACK);
-	glEnable(GL_TEXTURE_2D);
-}
+	if (inputChanged)
+	{
+		setUniformOn(program, "lightVector", m_sceneLight1);
+		setUniformOn(program, "lightVector2", m_sceneLight2);
+	}
 
-void Painter::unsetGlState()
-{
-	glDisable(GL_DEPTH_TEST);
+	if (newFrame)
+	{
+		setUniformOn(program, "model", m_model);
+		setUniformOn(program, "view", m_view);
+		setUniformOn(program, "projection", m_projection);
+		setUniformOn(program, "viewVector", glm::vec3(m_camera.center - m_camera.eye));
+	}
+
+	setUniformOn(program, "useNormals", useNormals);
+	setUniformOn(program, "renderDepthValueForTextureUsage", renderDepthValueForTextureUsage);
 }
 
 void Painter::draw(short renderMode)
@@ -346,34 +356,40 @@ void Painter::draw(short renderMode)
 	}
 	rotateModelByTime(time);
 
+	if (m_renderMode != renderMode)
+	{
+		m_renderMode = renderMode;
+		m_inputChanged = true;
+	}
+
 	switch (renderMode)
 	{
 	case 0:
-		drawNormalScene();
+		drawNormalScene(m_inputChanged);
 		break;
 	case 1:
-		drawOutlineHintsVisualization();
+		drawOutlineHintsVisualization(m_inputChanged);
 		break;
 	case 2:
-		drawStaticTransparancyVisualization();
+		drawStaticTransparancyVisualization(m_inputChanged);
 		break;
 	case 3:
-		drawAdaptiveTransparancyPerPixelVisualization();
+		drawAdaptiveTransparancyPerPixelVisualization(m_inputChanged);
 		break;
 	case 4:
-		drawGhostedViewVisualization();
+		drawGhostedViewVisualization(m_inputChanged);
 		break;
 	case 5:
-		drawFenceHintsVisualization();
+		drawFenceHintsVisualization(m_inputChanged);
 		break;
 	case 6:
-		drawFullFlatVisualization();
+		drawFullFlatVisualization(m_inputChanged);
 		break;
 	case 7:
-		drawFullFootprintVisualization();
+		drawFullFootprintVisualization(m_inputChanged);
 		break;
 	case 10:
-		mix_outlineHints_adaptiveTransparancy_onDepth();
+		mix_outlineHints_adaptiveTransparancy_onDepth(m_inputChanged);
 		break;
 	case 11:
 		;
@@ -384,23 +400,28 @@ void Painter::draw(short renderMode)
 	default:
 		break;
 	}
+
+	m_inputChanged = false;
 }
 
-void Painter::drawNormalScene()
+void Painter::drawNormalScene(bool inputChanged)
 {
 	setGlState();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 
+	update(m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+
 	unsetGlState();
 }
 
-void Painter::drawOutlineHintsVisualization()
+void Painter::drawOutlineHintsVisualization(bool inputChanged)
 {
 	setGlState();
 
@@ -412,11 +433,15 @@ void Painter::drawOutlineHintsVisualization()
 	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
 	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+
+	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+
+	update(m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	
 	//########## Render extruded line to ABuffer ##############
 	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
@@ -465,7 +490,7 @@ void Painter::drawOutlineHintsVisualization()
 	unsetGlState();
 }
 
-void Painter::drawStaticTransparancyVisualization()
+void Painter::drawStaticTransparancyVisualization(bool inputChanged)
 {
 	setGlState();
 
@@ -493,7 +518,7 @@ void Painter::drawStaticTransparancyVisualization()
 	unsetGlState();
 }
 
-void Painter::drawAdaptiveTransparancyPerPixelVisualization()
+void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 {
 	setGlState();
 
@@ -542,7 +567,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization()
 	unsetGlState();
 }
 
-void Painter::drawGhostedViewVisualization()
+void Painter::drawGhostedViewVisualization(bool inputChanged)
 {
 	setGlState();
 
@@ -587,7 +612,7 @@ void Painter::drawGhostedViewVisualization()
 	unsetGlState();
 }
 
-void Painter::drawFenceHintsVisualization()
+void Painter::drawFenceHintsVisualization(bool inputChanged)
 {
 	setGlState();
 	//TODO: Viel. alles zusammen in einem Durchlauf möglich -> keine extra Texturen??
@@ -627,7 +652,7 @@ void Painter::drawFenceHintsVisualization()
 	unsetGlState();
 }
 
-void Painter::drawFullFlatVisualization()
+void Painter::drawFullFlatVisualization(bool inputChanged)
 {
 	setGlState();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -640,7 +665,7 @@ void Painter::drawFullFlatVisualization()
 	unsetGlState();
 }
 
-void Painter::drawFullFootprintVisualization()
+void Painter::drawFullFootprintVisualization(bool inputChanged)
 {
 	setGlState();
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -654,7 +679,7 @@ void Painter::drawFullFootprintVisualization()
 	unsetGlState();
 }
 
-void Painter::mix_outlineHints_adaptiveTransparancy_onDepth()
+void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 {
 	//TODO: allgemeinerer Ansatz: mixOnDepth(enum ...) der die Visualizierungen spezifiziert
 	setGlState();
@@ -863,40 +888,11 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 	if (!vao || !vbo || !program)
 		return;
 
+	setUniformOn(m_generalProgram, "specifiedColor", specifiedColor);
+
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
 	program->use();
-
-	//get uniform locations
-	GLint loc_model = program->getUniformLocation("model");
-	GLint loc_view = program->getUniformLocation("view");
-	GLint loc_projection = program->getUniformLocation("projection");
-	GLint loc_viewVector = program->getUniformLocation("viewVector");
-	GLint loc_lightVector = program->getUniformLocation("lightVector");
-	GLint loc_lightVector2 = program->getUniformLocation("lightVector2");
-	GLint loc_useNormals = program->getUniformLocation("useNormals");
-	GLint loc_specifiedColor = program->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = program->getUniformLocation("renderDepthValueForTextureUsage");
-
-	//bind uniforms
-	if (loc_model >= 0)
-		program->setUniform(loc_model, m_model);
-	if (loc_view >= 0)
-		program->setUniform(loc_view, m_view);
-	if (loc_projection >= 0)
-		program->setUniform(loc_projection, m_projection);
-	if (loc_viewVector >= 0)
-		program->setUniform(loc_viewVector, glm::vec3(m_camera.center - m_camera.eye));
-	if (loc_lightVector >= 0)
-		program->setUniform(loc_lightVector, m_sceneLight1);
-	if (loc_lightVector2 >= 0)
-		program->setUniform(loc_lightVector2, m_sceneLight2);
-	if (loc_useNormals >= 0)
-		program->setUniform(loc_useNormals, useNormals);
-	if (loc_specifiedColor >= 0)
-		program->setUniform(loc_specifiedColor, specifiedColor);
-	if (loc_renderDepthValueForTextureUsage >= 0)
-		program->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
 
 	vao->drawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
 	program->release();
@@ -1054,6 +1050,60 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 	vao->drawElements(drawMode, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
 	program->release();
 	vao->unbind();
+}
+
+void Painter::setGlState()
+{
+	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	glCullFace(GL_BACK);
+	glEnable(GL_TEXTURE_2D);
+}
+
+void Painter::unsetGlState()
+{
+	glDisable(GL_DEPTH_TEST);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const bool value) const
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const int value) const 
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::vec3 & value) const
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::vec4 & value) const 
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::mat4x4 & value) const 
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
 }
 
 void Painter::setUpMatrices()

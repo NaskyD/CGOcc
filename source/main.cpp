@@ -18,7 +18,7 @@ using namespace gl;
 namespace{
 	bool g_toggleFS = false;
 	bool g_isFS = false;
-	short g_renderMode = 0;
+	unsigned short g_renderMode = 0;
 	const int c_windowWidth = 1024;//1920;//1024;
 		const int c_windowHeight = 768;//1080;// 768;
 	Painter g_painter(c_windowWidth, c_windowHeight);
