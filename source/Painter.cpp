@@ -321,12 +321,14 @@ void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao
 	vao->unbind();
 }
 
-void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged)
+void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged, bool to_fromABuffer)
 {
 	if (inputChanged)
 	{
+		//TODO - how much of these are still needed?
 		setUniformOn(program, "lightVector", m_sceneLight1);
 		setUniformOn(program, "lightVector2", m_sceneLight2);
+		setUniformOn(program, "clearColor", c_clearColor);
 	}
 
 	if (newFrame)
@@ -335,6 +337,37 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 		setUniformOn(program, "view", m_view);
 		setUniformOn(program, "projection", m_projection);
 		setUniformOn(program, "viewVector", glm::vec3(m_camera.center - m_camera.eye));
+		setUniformOn(program, "windowWidth", m_windowWidth);
+		setUniformOn(program, "windowHeight", m_windowHeight);
+	}
+
+	if (to_fromABuffer)
+	{
+		GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
+		GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
+		GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
+
+		if (loc_aBuffer >= 0)
+		{
+			glActiveTexture(GL_TEXTURE3);
+			glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
+			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
+		}
+		if (loc_aBufferIndexTexture >= 0)
+		{
+			glActiveTexture(GL_TEXTURE4);
+			glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
+			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
+		}
+		if (loc_typeIdImg >= 0)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, m_transparentCityTexture);
+			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
+		}
+
+		setUniformOn(program, "typeId", 0u);
+		setUniformOn(program, "maxLayer", c_aBufferMaxLayers);
 	}
 
 	setUniformOn(program, "useNormals", useNormals);
@@ -429,6 +462,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	setGlState();
 
 	//########## clear A-Buffer and IndexImage #############
+	update(m_clearABufferProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -447,6 +481,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	
 	//########## Render extruded line to ABuffer ##############
+	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
 	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
 	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -460,6 +495,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 	m_currentHaloColor = c_lineColor;
 
+	update(m_haloLineABufferedProgram, false, true, true, inputChanged, true);
 	drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 
 	if(c_twoLines)
@@ -469,6 +505,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render extruded line2 to ABuffer ##############
+		update(m_toABufferOnlyProgram, false, true, true, inputChanged, true);
 		drawToABufferOnly(m_vaoLine2, m_vboLine2Indices, m_line2Indices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -478,6 +515,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 		m_currentHaloColor = c_line2Color;
+
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
@@ -489,6 +527,8 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 	m_outlineHintsTextures.at(1)->bindActive(GL_TEXTURE1);
 	m_outlineHintsTextures.at(2)->bindActive(GL_TEXTURE2);
+
+	update(m_outlineHintsProgram, false, false, true, inputChanged);
 	drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 	unsetGlState();
 }
@@ -498,6 +538,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged)
 	setGlState();
 
 	//########## clear A-Buffer and IndexImage #############
+	update(m_clearABufferProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -505,17 +546,22 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged)
 	//TODO: does it really need an own fbo?
 	m_fboStaticTransparancy->bind(GL_FRAMEBUFFER);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, true, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0);
-	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1);
-	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3);
+
+	update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, true, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+	update(m_toABufferTypedProgram, false, false, false, inputChanged);
+	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
+	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
+	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 
 	//drawToSAQ(m_sortABufferProgram, nullptr);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render to the Screen ##############
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_transparentCityProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_transparentCityProgram, nullptr);
 	unsetGlState();
 }
@@ -525,15 +571,20 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 	setGlState();
 
 	//########## clear A-Buffer and IndexImage #############
+	update(m_clearABufferProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
-	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, false);
-	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, false, c_planeColor, 1);
-	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, false, c_streetsColor, 2);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, false, c_lineColor, 3);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, false, c_line2Color, 3);
+	update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, true, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+	update(m_toABufferTypedProgram, false, false, false, inputChanged);
+	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
+	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
+	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
+
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//drawToSAQ(m_sortABufferProgram, nullptr);
@@ -548,6 +599,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_maskingBoxFilterForAdaptiveTransparancyProgram, false, false, true, inputChanged);
 	drawToSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
 	
 	//########## render city & flatLines to texture ############
@@ -570,6 +622,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 	m_adaptiveTransparancyPerPixelTextures[0]->bindActive(GL_TEXTURE0);
 	m_adaptiveTransparancyPerPixelTextures[1]->bindActive(GL_TEXTURE1);
 	m_adaptiveTransparancyPerPixelTextures[2]->bindActive(GL_TEXTURE2);
+	update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
 	unsetGlState();
 }
@@ -595,10 +648,10 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	//########## render city(without houses) to Texture ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, false, c_planeColor);
-	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, false, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, false, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, false, c_line2Color);
+	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
+	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 
 	//########## render transparancy mask texture ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
@@ -609,6 +662,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_maskingBoxFilterForGhostedViewProgram, false, true, true, inputChanged);
 	drawToSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -616,8 +670,8 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	m_ghostedViewTextures[0]->bindActive(GL_TEXTURE0);
 	m_ghostedViewTextures[1]->bindActive(GL_TEXTURE1);
-	//TODO what happend to number 2???
 	m_ghostedViewTextures[3]->bindActive(GL_TEXTURE3);
+	update(m_ghostedViewProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
 	unsetGlState();
@@ -663,6 +717,7 @@ void Painter::drawFenceHintsVisualization(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	m_fenceHintsTextures[0]->bindActive(GL_TEXTURE0);
 	m_fenceHintsTextures[1]->bindActive(GL_TEXTURE1);
+	update(m_fenceHintsProgram, false, false, true, inputChanged);
 	drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 	
 	unsetGlState();
@@ -707,6 +762,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
 	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//TODO- updates einführen
 	drawToSAQ(m_perspectiveDepthMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -730,6 +786,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 
 	//########## Render extruded line to ABuffer ##############
+	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
 	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
 	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
@@ -752,6 +809,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render extruded line2 to ABuffer ##############
+		update(m_toABufferOnlyProgram, false, true, true, inputChanged, true);
 		drawToABufferOnly(m_vaoLine2, m_vboLine2Indices, m_line2Indices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -785,11 +843,14 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
-	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, false);
-	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, false, c_planeColor, 1);
-	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, false, c_streetsColor, 2);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, false, c_lineColor, 3);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, false, c_line2Color, 3);
+	update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+	drawToABufferOnly(m_vaoCity, m_vboCityIndices, m_cityIndices, m_toABufferTypedProgram, true, true, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+	update(m_toABufferTypedProgram, false, false, false, inputChanged);
+	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
+	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
+	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render transparancy mask texture ############
@@ -842,69 +903,20 @@ void Painter::drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer 
 	if (!vao || !vbo || !program)
 		return;
 
+	setUniformOn(program, "specifiedColor", specifiedColor);
+
+	if (typeId != 0u) {
+		setUniformOn(program, "typeId", typeId);
+	}
+
+	program->use();
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
-	program->use();
-
-	//TODO - alsways -> prob. not
-	//get uniform locations
-	GLint loc_model = program->getUniformLocation("model");
-	GLint loc_view = program->getUniformLocation("view");
-	GLint loc_projection = program->getUniformLocation("projection");
-	GLint loc_viewVector = program->getUniformLocation("viewVector");
-	GLint loc_lightVector = program->getUniformLocation("lightVector");
-	GLint loc_lightVector2 = program->getUniformLocation("lightVector2");
-	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
-	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
-	GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
-	GLint loc_useNormals = program->getUniformLocation("useNormals");
-	GLint loc_specifiedColor = program->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = program->getUniformLocation("renderDepthValueForTextureUsage");
-	GLint loc_typeId = program->getUniformLocation("typeId");
-
-	//bind uniforms
-	if (loc_model >= 0)
-		program->setUniform(loc_model, m_model);
-	if (loc_view >= 0)
-		program->setUniform(loc_view, m_view);
-	if (loc_projection >= 0)
-		program->setUniform(loc_projection, m_projection);
-	if (loc_viewVector >= 0)
-		program->setUniform(loc_viewVector, glm::vec3(m_camera.center - m_camera.eye));
-	if (loc_lightVector >= 0)
-		program->setUniform(loc_lightVector, m_sceneLight1);
-	if (loc_lightVector2 >= 0)
-		program->setUniform(loc_lightVector2, m_sceneLight2);
-	if (loc_useNormals >= 0)
-		program->setUniform(loc_useNormals, useNormals);
-	if (loc_specifiedColor >= 0)
-		program->setUniform(loc_specifiedColor, specifiedColor);
-	if (loc_renderDepthValueForTextureUsage >= 0)
-		program->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
-	if (loc_typeId >= 0)
-		program->setUniform(loc_typeId, typeId);
-	if (loc_aBuffer >= 0)
-	{
-		glActiveTexture(GL_TEXTURE3);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
-	}
-	if (loc_aBufferIndexTexture >= 0)
-	{
-		glActiveTexture(GL_TEXTURE4);
-		glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
-	}
-	if (loc_typeIdImg >= 0)
-	{
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, m_transparentCityTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
-	}
 
 	vao->drawElements(drawMode, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
-	program->release();
+
 	vao->unbind();
+	program->release();
 }
 
 void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
@@ -914,30 +926,24 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
+	program->use();
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
-	program->use();
 
 	vao->drawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
-	program->release();
+
+
 	vao->unbind();
+	program->release();
 }
 
 void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
 {
+	setUniformOn(program, "haloColor", m_currentHaloColor);
+
+	program->use();
 	m_vaoSAQ->bind();
 	m_vboSAQIndices->bind(GL_ARRAY_BUFFER);
-	program->use();
-
-	//TODO - always`-> probably not
-	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
-	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
-	GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
-	GLint loc_haloColor = program->getUniformLocation("haloColor");
-	GLint loc_clearColor = program->getUniformLocation("clearColor");
-	GLint loc_windowWidth = program->getUniformLocation("windowWidth");
-	GLint lom_windowHeight = program->getUniformLocation("windowHeight");
-	GLint loc_maxLayer = program->getUniformLocation("maxLayer");
 
 	if(textures)
 	{
@@ -952,50 +958,19 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 			}
 		}
 	}
-	if (loc_aBuffer >= 0)
-	{
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
-	}
-	if (loc_aBufferIndexTexture >= 0)
-	{
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
-	}
-	if (loc_typeIdImg >= 0)
-	{
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
-	}
-	if (loc_haloColor >= 0)
-	{
-		program->setUniform(loc_haloColor, m_currentHaloColor);
-	}
-	if (loc_clearColor >= 0)
-	{
-		program->setUniform(loc_clearColor, c_clearColor);
-	}
-	if (loc_windowWidth >= 0)
-	{
-		program->setUniform(loc_windowWidth, m_windowWidth);
-	}
-	if (lom_windowHeight >= 0)
-	{
-		program->setUniform(lom_windowHeight, m_windowHeight);
-	}
-	if (loc_maxLayer >= 0)
-	{
-		program->setUniform(loc_maxLayer, c_aBufferMaxLayers);
-	}
+
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-	program->release();
 	m_vaoSAQ->unbind();
+	program->release();
 }
 
 //TODO Maybe remove later
 void Painter::drawFenceGradient(bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
 {
+	m_fenceGradientProgram->use();
 	m_vaoLineVertices->bind();
 	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
-	m_fenceGradientProgram->use();
 
 	//TODO - take uniforms out if possible
 	//get uniform locations
@@ -1018,8 +993,9 @@ void Painter::drawFenceGradient(bool renderDepthValueForTextureUsage, glm::vec4 
 		m_fenceGradientProgram->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
 
 	m_vaoLineVertices->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(m_lineIndices.size()), GL_UNSIGNED_INT);
-	m_fenceGradientProgram->release();
+
 	m_vaoLineVertices->unbind();
+	m_fenceGradientProgram->release();
 }
 
 void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int>& indices, globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor, GLenum drawMode)
@@ -1027,29 +1003,8 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 	if (!vao || !vbo || !program)
 		return;
 
-	vao->bind();
-	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
-	program->use();
-
-	// TODO - remove the possible ones
 	//get uniform locations
-	GLint loc_model = program->getUniformLocation("model");
-	GLint loc_view = program->getUniformLocation("view");
-	GLint loc_projection = program->getUniformLocation("projection");
-	GLint loc_specifiedColor = program->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = program->getUniformLocation("renderDepthValueForTextureUsage");
-
-	//bind uniforms
-	if (loc_model >= 0)
-		program->setUniform(loc_model, m_model);
-	if (loc_view >= 0)
-		program->setUniform(loc_view, m_view);
-	if (loc_projection >= 0)
-		program->setUniform(loc_projection, m_projection);
-	if (loc_specifiedColor >= 0)
-		program->setUniform(loc_specifiedColor, specifiedColor);
-	if (loc_renderDepthValueForTextureUsage >= 0)
-		program->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
+	setUniformOn(program, "specifiedColor", specifiedColor);
 
 	if (textures)
 	{
@@ -1065,9 +1020,14 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 		}
 	}
 
+	program->use();
+	vao->bind();
+	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
+
 	vao->drawElements(drawMode, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
-	program->release();
+
 	vao->unbind();
+	program->release();
 }
 
 void Painter::setGlState()
@@ -1085,6 +1045,14 @@ void Painter::unsetGlState()
 }
 
 void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const bool value) const
+{
+	GLint location = program->getUniformLocation(name);
+
+	if (location >= 0)
+		program->setUniform(location, value);
+}
+
+void Painter::setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const unsigned int value) const
 {
 	GLint location = program->getUniformLocation(name);
 

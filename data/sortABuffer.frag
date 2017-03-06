@@ -8,11 +8,10 @@ coherent uniform layout(size1x32) uimage2D aBufferIndexImg;
 //has to be const
 const int maxLayer = 16;
 
-void sortABufferFragments(ivec2 coords, uint maxIndex){
+void sortABufferFragments(const in ivec2 coords, const in uint maxIndex){
 	//Load fragments into a local memory array for sorting
 	vec4 fragmentList[maxLayer];
-	for(int i = 0; i < maxIndex; i++)
-	{
+	for(int i = 0; i < maxIndex; i++) {
 		fragmentList[i] = imageLoad(aBufferImg, ivec3(coords, i));
 	}
 

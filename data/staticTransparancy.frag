@@ -57,12 +57,14 @@ void main()
 	float transparancyStreets = 1.0;
 	float transparancyLines = 1.0;
 	vec3 aBufferTexelSum = clearColor;
+	float type = 0.0;
 	for(int i = maxIndex-1; i >= 0; i--)
 	{
-		float type = float((typeNumber >> (2 * i)) & 0x3);
+		type = float((typeNumber >> (2 * i)) & 0x3);
 		transparancy = mix(mix(mix(transparancyCity, transparancyPlane, step(0.5, type)), transparancyStreets, step(1.5, type)), transparancyLines, step(2.5, type));
 		aBufferTexelSum = (1 - transparancy) * aBufferTexelSum + transparancy * fragmentList[i].rgb;
 	}
 	
 	FragColor = vec4(vec3(aBufferTexelSum), 1.0);
+	//FragColor = vec4(fragmentList[0].rgb, 1.0);
 }
