@@ -18,7 +18,7 @@ void main()
 	}
 	else
 	{
-		v_normals = vec3(0.0, -1.0, 0.0);
+		v_normals = vec3(1.0);
 	}
 
 	mat4 transform = projection * view * model;
