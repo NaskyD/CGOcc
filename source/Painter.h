@@ -143,6 +143,7 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboLine2Indices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPathIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPath2Indices;
+	globjects::ref_ptr<globjects::Buffer> m_vboSAQIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboStreetsIndices;
 
@@ -184,6 +185,7 @@ protected:
 	std::vector<unsigned int> m_linesIndices;
 	std::vector<unsigned int> m_pathIndices;
 	std::vector<unsigned int> m_path2Indices;
+	std::vector<unsigned int> m_SAQIndices;
 	std::vector<unsigned int> m_planeIndices;
 	std::vector<unsigned int> m_streetsIndices;
 	std::vector<glm::vec3> m_normals;

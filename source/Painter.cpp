@@ -50,53 +50,62 @@ void Painter::initialize()
 {
 	loadGeometry();
 
-	m_generalProgram = (new globjects::Program());
-	m_outlineHintsProgram = (new globjects::Program());
-	m_extrudedLinetoABufferOnlyProgram = (new globjects::Program());
-	m_fenceGradientProgram = (new globjects::Program());
-	m_haloLineABufferedProgram = (new globjects::Program());
-	m_clearABufferProgram = (new globjects::Program());
-	m_sortABufferProgram = (new globjects::Program());
-	m_toABufferOnlyProgram = (new globjects::Program());
-	m_toABufferTypedProgram = (new globjects::Program());
-	m_transparentCityProgram = (new globjects::Program());
-	m_adaptiveTransparancyPerPixelProgram = (new globjects::Program());
-	m_maskingBoxFilterForAdaptiveTransparancyProgram = (new globjects::Program());
-	m_maskingBoxFilterForGhostedViewProgram = (new globjects::Program());
-	m_ghostedViewProgram = (new globjects::Program());
-	m_fenceHintsProgram = (new globjects::Program());
-	m_fenceHintsCubeProgram = (new globjects::Program());
-	m_fenceHintsLineProgram = (new globjects::Program());
-	m_footprintProgram = (new globjects::Program());
-	m_perspectiveDepthMaskProgram = (new globjects::Program());
-	m_mixByMaskProgram = (new globjects::Program());
-	m_vaoCity = (new globjects::VertexArray());
-	m_vaoLine = (new globjects::VertexArray());
-	m_vaoLine2 = (new globjects::VertexArray());
-	m_vaoPath = (new globjects::VertexArray());
-	m_vaoPath2 = (new globjects::VertexArray());
-	m_vaoSAQ = (new globjects::VertexArray());
-	m_vaoPlane = (new globjects::VertexArray());
-	m_vaoStreets = (new globjects::VertexArray());
-	m_vboCityIndices = (new globjects::Buffer());
-	m_vboLineIndices = (new globjects::Buffer());
-	m_vboLine2Indices = (new globjects::Buffer());
-	m_vboPathIndices = (new globjects::Buffer());
-	m_vboPath2Indices = (new globjects::Buffer());
-	m_vboPlaneIndices = (new globjects::Buffer());
-	m_vboStreetsIndices = (new globjects::Buffer());
-	m_fboOutlineHints = (new globjects::Framebuffer());
-	m_fboStaticTransparancy = (new globjects::Framebuffer());
-	m_fboAdaptiveTranspancyPerPixel = (new globjects::Framebuffer());
-	m_fboGhostedView = (new globjects::Framebuffer());
-	m_fboFenceHints = (new globjects::Framebuffer());
-	m_fboPerspectiveDepthMask = (new globjects::Framebuffer());
+	m_generalProgram = new globjects::Program();
+	m_outlineHintsProgram = new globjects::Program();
+	m_extrudedLinetoABufferOnlyProgram = new globjects::Program();
+	m_fenceGradientProgram = new globjects::Program();
+	m_haloLineABufferedProgram = new globjects::Program();
+	m_clearABufferProgram = new globjects::Program();
+	m_sortABufferProgram = new globjects::Program();
+	m_toABufferOnlyProgram = new globjects::Program();
+	m_toABufferTypedProgram = new globjects::Program();
+	m_transparentCityProgram = new globjects::Program();
+	m_adaptiveTransparancyPerPixelProgram = new globjects::Program();
+	m_maskingBoxFilterForAdaptiveTransparancyProgram = new globjects::Program();
+	m_maskingBoxFilterForGhostedViewProgram = new globjects::Program();
+	m_ghostedViewProgram = new globjects::Program();
+	m_fenceHintsProgram = new globjects::Program();
+	m_fenceHintsCubeProgram = new globjects::Program();
+	m_fenceHintsLineProgram = new globjects::Program();
+	m_footprintProgram = new globjects::Program();
+	m_perspectiveDepthMaskProgram = new globjects::Program();
+	m_mixByMaskProgram = new globjects::Program();
+	m_vaoCity = new globjects::VertexArray();
+	m_vaoLine = new globjects::VertexArray();
+	m_vaoLine2 = new globjects::VertexArray();
+	m_vaoPath = new globjects::VertexArray();
+	m_vaoPath2 = new globjects::VertexArray();
+	m_vaoSAQ = new globjects::VertexArray();
+	m_vaoPlane = new globjects::VertexArray();
+	m_vaoStreets = new globjects::VertexArray();
+	m_vboCityIndices = new globjects::Buffer();
+	m_vboLineIndices = new globjects::Buffer();
+	m_vboLine2Indices = new globjects::Buffer();
+	m_vboPathIndices = new globjects::Buffer();
+	m_vboPath2Indices = new globjects::Buffer();
+	m_vboSAQIndices = new globjects::Buffer();
+	m_vboPlaneIndices = new globjects::Buffer();
+	m_vboStreetsIndices = new globjects::Buffer();
+	m_fboOutlineHints = new globjects::Framebuffer();
+	m_fboStaticTransparancy = new globjects::Framebuffer();
+	m_fboAdaptiveTranspancyPerPixel = new globjects::Framebuffer();
+	m_fboGhostedView = new globjects::Framebuffer();
+	m_fboFenceHints = new globjects::Framebuffer();
+	m_fboPerspectiveDepthMask = new globjects::Framebuffer();
 
 	//line vertices
-	m_vaoLineVertices = (new globjects::VertexArray());
-	m_vboLineVertices = (new globjects::Buffer());
+	m_vaoLineVertices = new globjects::VertexArray();
+	m_vboLineVertices = new globjects::Buffer();
 
-	loadGeometryToGPU(m_vaoSAQ, m_vbo, m_screenAlignedQuad, , false);
+	//define screen aligned quad
+	m_screenAlignedQuad.push_back(glm::vec3(-1.0f, -1.0f, 0.0f));
+	m_screenAlignedQuad.push_back(glm::vec3(1.0f, -1.0f, 0.0f));
+	m_screenAlignedQuad.push_back(glm::vec3(-1.0f, 1.0f, 0.0f));
+	m_screenAlignedQuad.push_back(glm::vec3(1.0f, 1.0f, 0.0f));
+
+	m_SAQIndices = { 0u, 1u, 2u, 3u };
+
+	loadGeometryToGPU(m_vaoSAQ, m_vboSAQIndices, m_screenAlignedQuad, m_SAQIndices, false);
 
 	loadGeometryToGPU(m_vaoCity, m_vboCityIndices, m_cityVertices, m_cityIndices, true);
 	loadGeometryToGPU(m_vaoPlane, m_vboPlaneIndices, m_planeVertices, m_planeIndices, false);
@@ -121,12 +130,6 @@ void Painter::initialize()
 	//set up timer
 	std::chrono::steady_clock currentTime;
 	m_applicationStartTime = currentTime.now();
-
-	//define screen aligned quad
-	m_screenAlignedQuad.push_back(glm::vec3(-1.0f, -1.0f, 0.0f));
-	m_screenAlignedQuad.push_back(glm::vec3(1.0f, -1.0f, 0.0f));
-	m_screenAlignedQuad.push_back(glm::vec3(-1.0f, 1.0f, 0.0f));
-	m_screenAlignedQuad.push_back(glm::vec3(1.0f, 1.0f, 0.0f));
 }
 
 double Painter::getTimeDifference()
@@ -902,17 +905,8 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
 {
 	m_vaoSAQ->bind();
+	m_vboSAQIndices->bind(GL_ARRAY_BUFFER);
 	program->use();
-
-	//TODO geht das nicht schöner?
-	globjects::ref_ptr<globjects::Buffer> vbo_vertices = new globjects::Buffer();
-	vbo_vertices->bind(GL_ARRAY_BUFFER);
-	vbo_vertices->setData(m_screenAlignedQuad.size() * sizeof(glm::vec3), m_screenAlignedQuad.data(), GL_STATIC_DRAW);
-
-	m_vaoSAQ->binding(0)->setAttribute(0);
-	m_vaoSAQ->binding(0)->setBuffer(vbo_vertices, 0, sizeof(float) * 3);
-	m_vaoSAQ->binding(0)->setFormat(3, GL_FLOAT, GL_FALSE, 0);
-	m_vaoSAQ->enable(0);
 
 	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
 	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
