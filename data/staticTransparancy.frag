@@ -66,5 +66,4 @@ void main()
 	}
 	
 	FragColor = vec4(vec3(aBufferTexelSum), 1.0);
-	//FragColor = vec4(fragmentList[0].rgb, 1.0);
 }

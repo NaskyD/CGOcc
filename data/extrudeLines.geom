@@ -1,8 +1,6 @@
 #version 330 core
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 transform;
 
 layout(lines) in;
 layout(triangle_strip, max_vertices = 4) out;
@@ -12,7 +10,7 @@ float height = 50.0;
 
 vec4 toWorldPosition(vec4 vertex)
 {
-	return projection * view * model * vertex;
+	return transform * vertex;
 } 
 
 void main() {
