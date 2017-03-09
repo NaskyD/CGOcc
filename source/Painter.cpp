@@ -69,6 +69,9 @@ void Painter::initialize()
 	m_fenceHintsLineProgram = new globjects::Program();
 	m_footprintProgram = new globjects::Program();
 	m_perspectiveDepthMaskProgram = new globjects::Program();
+	m_edgeDetectionProgram = new globjects::Program();
+	m_dilationFilterProgram = new globjects::Program();
+	m_mixEnhancedEdgesProgram = new globjects::Program();
 	m_mixByMaskProgram = new globjects::Program();
 	m_vaoCity = new globjects::VertexArray();
 	m_vaoLine = new globjects::VertexArray();
@@ -86,12 +89,14 @@ void Painter::initialize()
 	m_vboSAQIndices = new globjects::Buffer();
 	m_vboPlaneIndices = new globjects::Buffer();
 	m_vboStreetsIndices = new globjects::Buffer();
+	m_fboNormalVisualization = new globjects::Framebuffer();
 	m_fboOutlineHints = new globjects::Framebuffer();
 	m_fboStaticTransparancy = new globjects::Framebuffer();
 	m_fboAdaptiveTranspancyPerPixel = new globjects::Framebuffer();
 	m_fboGhostedView = new globjects::Framebuffer();
 	m_fboFenceHints = new globjects::Framebuffer();
 	m_fboPerspectiveDepthMask = new globjects::Framebuffer();
+	m_fboEdgeEnhancement = new globjects::Framebuffer();
 
 	//line vertices
 	m_vaoLineVertices = new globjects::VertexArray();
@@ -266,6 +271,24 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/depthMask.frag")
 	);
 	m_perspectiveDepthMaskProgram->link();
+
+	m_edgeDetectionProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/edgeDetection.frag")
+	);
+	m_edgeDetectionProgram->link();
+
+	m_dilationFilterProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/dilation.frag")
+	);
+	m_dilationFilterProgram->link();
+
+	m_mixEnhancedEdgesProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixEnhancedEdge.frag")
+	);
+	m_mixEnhancedEdgesProgram->link();
 }
 
 void Painter::loadGeometry()
@@ -333,9 +356,7 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 
 	if (newFrame)
 	{
-		setUniformOn(program, "model", m_model);
-		setUniformOn(program, "view", m_view);
-		setUniformOn(program, "projection", m_projection);
+		setUniformOn(program, "transform", m_transform);
 		setUniformOn(program, "viewVector", glm::vec3(m_camera.center - m_camera.eye));
 		setUniformOn(program, "windowWidth", m_windowWidth);
 		setUniformOn(program, "windowHeight", m_windowHeight);
@@ -362,7 +383,7 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 		if (loc_typeIdImg >= 0)
 		{
 			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, m_transparentCityTexture);
+			glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
 			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
 		}
 
@@ -397,6 +418,8 @@ void Painter::draw(short renderMode)
 		m_renderMode = renderMode;
 		m_inputChanged = true;
 	}
+
+	m_transform = m_projection * m_view * m_model;
 
 	switch (renderMode)
 	{
@@ -440,20 +463,140 @@ void Painter::draw(short renderMode)
 	m_inputChanged = false;
 }
 
+void Painter::drawEdgeEnhancementFromTexture(globjects::Texture & source)
+{
+	m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
+	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	update(m_edgeDetectionProgram,false, true, true);
+
+	GLint loc_texture = m_edgeDetectionProgram->getUniformLocation(std::string("texture0"));
+	if (loc_texture >= 0)
+	{
+		source.bindActive(GL_TEXTURE0);
+		m_edgeDetectionProgram->setUniform(loc_texture, 0);
+	}
+	drawToSAQ(m_edgeDetectionProgram, nullptr);
+
+	//TODO - use or delete dilation program
+	//update(m_dilationFilterProgram, false, true, true);
+	//drawToSAQ(m_dilationFilterProgram, &m_enhancedEdgeTexture);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+}
+
+void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged)
+{
+	setGlState();
+	/*
+	if (!source)
+	{
+		m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
+		m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_generalProgram, false, true);
+		drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
+		drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
+		drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
+		drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+
+		update(m_generalProgram, true, true, true, inputChanged);
+		drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	}*/
+
+	m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
+	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_generalProgram, true, true, true, inputChanged);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	//drawEdgeEnhancementFromTexture(source);
+
+	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	update(m_edgeDetectionProgram, false, true, true);
+	drawToSAQ(m_edgeDetectionProgram, &m_enhancedEdgeTexture);
+
+	//TODO - use or delete dilation program
+	//update(m_dilationFilterProgram, false, true, true);
+	//drawToSAQ(m_dilationFilterProgram, &m_enhancedEdgeTexture);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	update(m_mixEnhancedEdgesProgram, false, false, true, inputChanged);
+	if (inputChanged)
+	{
+		GLint loc_texture0 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture0"));
+		if (loc_texture0 >= 0)
+		{
+			m_enhancedEdgeTexture.at(1)->bindActive(GL_TEXTURE0);
+			m_mixEnhancedEdgesProgram->setUniform(loc_texture0, 0);
+		}
+
+		GLint loc_texture1 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture1"));
+		if (loc_texture1 >= 0)
+		{
+			source.bindActive(GL_TEXTURE1);
+			m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
+		}
+	}
+
+	drawToSAQ(m_mixEnhancedEdgesProgram, nullptr);
+
+	unsetGlState();
+}
+
 void Painter::drawNormalScene(bool inputChanged)
 {
 	setGlState();
+	
+	m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
+	m_fboNormalVisualization->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
 
-	update(m_generalProgram, false, true, true, inputChanged);
+	update(m_generalProgram, false, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 
-	update(m_generalProgram, true, true);
+	update(m_generalProgram, true, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	/*
+	m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
+	m_fboNormalVisualization->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	drawEdgeEnhancementFromTexture(*(m_normalVisualizationTextures.at(1)));
+
+	//m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
+	update(m_mixEnhancedEdgesProgram, false, false, true, inputChanged);
+	//TODO - extra combined bind?
+	GLint loc_texture0 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture0"));
+	if (loc_texture0 >= 0)
+	{
+		m_enhancedEdgeTexture.at(0)->bindActive(GL_TEXTURE0);
+		m_mixEnhancedEdgesProgram->setUniform(loc_texture0, 0);
+	}
+
+	GLint loc_texture1 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture1"));
+	if (loc_texture1 >= 0)
+	{
+		m_normalVisualizationTextures.at(0)->bindActive(GL_TEXTURE1);
+		m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
+	}
+	drawToSAQ(m_mixEnhancedEdgesProgram, nullptr);
+	*/
+
+	mixWithEnhancedEdges(*(m_normalVisualizationTextures.at(0)), inputChanged);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	unsetGlState();
 }
 
@@ -685,7 +828,9 @@ void Painter::drawFenceHintsVisualization(bool inputChanged)
 	m_fboFenceHints->bind(GL_FRAMEBUFFER);
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_fenceHintsCubeProgram, false, true, true, inputChanged);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
+	update(m_fenceHintsLineProgram, false, true, true, inputChanged);
 	//glLineWidth(3.0f);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
 	//glLineWidth(1.0f);
@@ -707,6 +852,7 @@ void Painter::drawFenceHintsVisualization(bool inputChanged)
 	//TODO verallgemeinern
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	update(m_fenceGradientProgram, false, true, true, inputChanged);
 	drawFenceGradient(true, c_lineColor);
 	//drawFenceGradient(c_line2Color);
 	glDisable(GL_BLEND);
@@ -953,7 +1099,7 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 
 			if (loc_texture >= 0)
 			{
-				textures->at(i)->bindActive(GL_TEXTURE + i);
+				textures->at(i)->bindActive(GL_TEXTURE0 + i);
 				program->setUniform(loc_texture, i);
 			}
 		}
@@ -968,29 +1114,11 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 //TODO Maybe remove later
 void Painter::drawFenceGradient(bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
 {
+	setUniformOn(m_fenceGradientProgram, "specifiedColor", specifiedColor);
+
 	m_fenceGradientProgram->use();
 	m_vaoLineVertices->bind();
 	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
-
-	//TODO - take uniforms out if possible
-	//get uniform locations
-	GLint loc_model = m_fenceGradientProgram->getUniformLocation("model");
-	GLint loc_view = m_fenceGradientProgram->getUniformLocation("view");
-	GLint loc_projection = m_fenceGradientProgram->getUniformLocation("projection");
-	GLint loc_specifiedColor = m_fenceGradientProgram->getUniformLocation("specifiedColor");
-	GLint loc_renderDepthValueForTextureUsage = m_fenceGradientProgram->getUniformLocation("renderDepthValueForTextureUsage");
-
-	//bind uniforms
-	if (loc_model >= 0)
-		m_fenceGradientProgram->setUniform(loc_model, m_model);
-	if (loc_view >= 0)
-		m_fenceGradientProgram->setUniform(loc_view, m_view);
-	if (loc_projection >= 0)
-		m_fenceGradientProgram->setUniform(loc_projection, m_projection);
-	if (loc_specifiedColor >= 0)
-		m_fenceGradientProgram->setUniform(loc_specifiedColor, specifiedColor);
-	if (loc_renderDepthValueForTextureUsage >= 0)
-		m_fenceGradientProgram->setUniform(loc_renderDepthValueForTextureUsage, renderDepthValueForTextureUsage);
 
 	m_vaoLineVertices->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(m_lineIndices.size()), GL_UNSIGNED_INT);
 
@@ -1003,7 +1131,6 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 	if (!vao || !vbo || !program)
 		return;
 
-	//get uniform locations
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
 	if (textures)
@@ -1014,7 +1141,7 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 
 			if (loc_texture >= 0)
 			{
-				textures->at(i)->bindActive(GL_TEXTURE + i);
+				textures->at(i)->bindActive(GL_TEXTURE0 + i);
 				program->setUniform(loc_texture, i);
 			}
 		}
@@ -1100,6 +1227,8 @@ void Painter::setUpMatrices()
 						  0.0f, 0.0f, 0.0f, 1.0f);
 	m_view = glm::lookAt(m_camera.eye, m_camera.center, m_camera.up);
 	m_projection = glm::perspectiveFov<float>(1.74f, m_windowWidth, m_windowHeight, 0.1f, 200.f);
+
+	m_transform = m_projection * m_view * m_model;
 }
 
 void Painter::rotateModelByTime(double timeDifference)
@@ -1118,6 +1247,8 @@ void Painter::rotateModelByTime(double timeDifference)
 
 void Painter::setUpFBOs()
 {
+	setFBO(m_fboNormalVisualization, &m_normalVisualizationTextures, 1);
+	setFBO(m_fboEdgeEnhancement, &m_enhancedEdgeTexture, 2);
 	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 3);
 	setFBO(m_fboStaticTransparancy, nullptr, 0);
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
@@ -1142,6 +1273,8 @@ void Painter::setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vect
 			textures->at(textureIndex)->bind();
 			textures->at(textureIndex)->setParameter(GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 			textures->at(textureIndex)->setParameter(GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+			textures->at(textureIndex)->setParameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+			textures->at(textureIndex)->setParameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 			textures->at(textureIndex)->image2D(0, GL_RGBA8, m_windowWidth, m_windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 
 			fbo->attachTexture(GL_COLOR_ATTACHMENT0 + i, textures->at(i));
@@ -1188,11 +1321,11 @@ void Painter::setUpABuffer()
 	glBindImageTexture(1, m_aBufferIndexTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 
 	//initialize type texture as image input
-	glGenTextures(1, &m_transparentCityTexture);
+	glGenTextures(1, &m_transparentTypedTexture);
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, m_transparentCityTexture);
+	glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
-	glBindImageTexture(2, m_transparentCityTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+	glBindImageTexture(2, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 }

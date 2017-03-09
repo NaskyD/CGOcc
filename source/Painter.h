@@ -62,6 +62,10 @@ public:
 	void draw(short renderMode);
 
 protected:
+	//effects
+	void drawEdgeEnhancementFromTexture(globjects::Texture & source);
+	void mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged);
+
 	//techniques
 	void drawNormalScene(bool inputChanged);
 	void drawOutlineHintsVisualization(bool inputChanged);
@@ -130,6 +134,12 @@ protected:
 	//#### helper programs for comining visualizations ####
 	globjects::ref_ptr<globjects::Program> m_perspectiveDepthMaskProgram;
 
+	//#### programs for additional effects ####
+	globjects::ref_ptr<globjects::Program> m_edgeDetectionProgram;
+	globjects::ref_ptr<globjects::Program> m_dilationFilterProgram;
+	globjects::ref_ptr<globjects::Program> m_mixEnhancedEdgesProgram;
+
+
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine2;
@@ -148,20 +158,24 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboStreetsIndices;
 
+	globjects::ref_ptr<globjects::Framebuffer> m_fboNormalVisualization;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboOutlineHints;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboStaticTransparancy;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboAdaptiveTranspancyPerPixel;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboGhostedView;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboFenceHints;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboEdgeEnhancement;
 
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_normalVisualizationTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
-	gl::GLuint m_transparentCityTexture;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_adaptiveTransparancyPerPixelTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_ghostedViewTextures;
-	std::vector <globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_enhancedEdgeTexture;
 	gl::GLuint m_aBufferTextureArrayID;
 	gl::GLuint m_aBufferIndexTexture;
+	gl::GLuint m_transparentTypedTexture;
 
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
 
@@ -194,6 +208,7 @@ protected:
 	glm::mat4x4 m_projection;
 	glm::mat4x4 m_view;
 	glm::mat4x4 m_model;
+	glm::mat4x4 m_transform;
 
 	Camera::Camera m_camera;
 	glm::vec3 m_sceneLight1;

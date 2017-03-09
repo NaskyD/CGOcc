@@ -1,8 +1,6 @@
 #version 430
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
+uniform mat4 transform;
 uniform bool useNormals;
 
 layout (location = 0) in vec3 vertexPos;
@@ -20,8 +18,6 @@ void main()
 	{
 		v_normals = vec3(1.0);
 	}
-
-	mat4 transform = projection * view * model;
 	
 	float height = step(0.1, vertexPos.y) * 0.5;
     gl_Position = vec4(transform * vec4(vertexPos.x, height, vertexPos.z, 1.0));
