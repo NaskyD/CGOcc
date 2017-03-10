@@ -1283,8 +1283,8 @@ void Painter::setUpCubeMap()
 {
 	ilInit();
 
-	ILuint imageID[6];
-	ilGenImages(6, imageID);
+	ILuint imageID;
+	ilGenImages(1, &imageID);
 
 	glGenTextures(1, &m_cubeMap);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
@@ -1293,23 +1293,25 @@ void Painter::setUpCubeMap()
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
 	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, static_cast<GLint>(GL_CLAMP_TO_EDGE));
+
+	std::string path("data/cubeTexture/street/");
 	
 	try {
-		loadImageToGPU(std::string("data/cubeTexture/2_xPos(Right).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_X, imageID[0]);
-		loadImageToGPU(std::string("data/cubeTexture/3_xNeg(Left).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_X, imageID[1]);
+		loadImageToGPU(path + std::string("2_xPos(Right).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_X, imageID);
+		loadImageToGPU(path + std::string("3_xNeg(Left).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_X, imageID);
 
-		loadImageToGPU(std::string("data/cubeTexture/4_yPos(Top).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Y, imageID[2]);
-		loadImageToGPU(std::string("data/cubeTexture/5_yNeg(Bottom).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, imageID[3]);
+		loadImageToGPU(path + std::string("4_yPos(Top).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Y, imageID);
+		loadImageToGPU(path + std::string("5_yNeg(Bottom).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, imageID);
 
-		loadImageToGPU(std::string("data/cubeTexture/0_zNeg(Back).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Z, imageID[4]);
-		loadImageToGPU(std::string("data/cubeTexture/1_zPos(Front).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, imageID[5]);
+		loadImageToGPU(path + std::string("0_zNeg(Back).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Z, imageID);
+		loadImageToGPU(path + std::string("1_zPos(Front).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, imageID);
 	}
 	catch (std::exception & e)
 	{
 		std::cout << e.what() << std::endl;
 	}
 	
-	ilDeleteImages(6, imageID);
+	ilDeleteImages(1, &imageID);
 }
 
 void Painter::loadImageToGPU(std::string & filename, GLenum target, ILuint handle)

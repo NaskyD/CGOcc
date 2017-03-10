@@ -55,7 +55,11 @@ void main()
 	sum = abs(sumHorizontal) + abs(sumVertical) + abs(sumFirstD) + abs(sumSecondD);
 	//sum = step(1.3, sum);
 	float grey_sum = (sum.x + sum.y + sum.z) / 3.0;
-	//sum = step(0.1, sum);
-	grey_sum = step(0.05, grey_sum);
+
+	//with normal cube textures
+	//grey_sum = step(0.05, grey_sum);
+	
+	//with street cube textures
+	grey_sum = step(0.25, grey_sum);
 	FragColor = vec4(vec3(grey_sum), 1.0);
 }

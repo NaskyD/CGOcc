@@ -30,7 +30,7 @@ void main()
 		//vec3 ambient = vec3(0.2, 0.2, 0.2);
 		//color = color * vec4(NdotL2 * diffuseColor + NdotL * diffuseColor2 + ambient, 1.0);
 		
-		color = vec4(texture(cubeMap, v_normals).xyz * 0.7, 1.0);
+		color = vec4(texture(cubeMap, v_normals).xyz * 0.8, 1.0);
 	}
 	
 	if(renderDepthValueForTextureUsage)
