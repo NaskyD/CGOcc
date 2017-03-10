@@ -1,7 +1,7 @@
 #version 430
 
-uniform vec3 lightVector;
-uniform vec3 lightVector2;
+//uniform vec3 lightVector;
+//uniform vec3 lightVector2;
 uniform vec4 specifiedColor;
 uniform bool useNormals;
 uniform bool renderDepthValueForTextureUsage;

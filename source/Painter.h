@@ -35,7 +35,7 @@ namespace
 	const int c_aBufferMaxLayers = 16;
 	const double PI = std::atan(1) * 4;
 	const bool c_twoLines = true;
-	const bool c_printFPS = true;
+	const bool c_printFPS = false;
 	//TODO setFenceHintsHeight outside of shader
 	const glm::vec4 c_planeColor(0.25f, 0.25f, 0.25f, 1.f);
 	const glm::vec4 c_streetsColor(0.1f, 0.1f, 0.1f, 1.f);
@@ -64,16 +64,17 @@ public:
 	void draw(short renderMode);
 
 protected:
-	//effects
+	//helper draw methods
 	void mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged);
+	void drawStandardCity(bool inputChanged);
 
 	//techniques
 	void drawNormalScene(bool inputChanged);
-	void drawOutlineHintsVisualization(bool inputChanged);
-	void drawStaticTransparancyVisualization(bool inputChanged);
-	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged);
-	void drawGhostedViewVisualization(bool inputChanged);
-	void drawFenceHintsVisualization(bool inputChanged);
+	void drawOutlineHintsVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawStaticTransparancyVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawGhostedViewVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawFenceHintsVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
 	void drawFullFlatVisualization(bool inputChanged);
 	void drawFullFootprintVisualization(bool inputChanged);
 
@@ -161,6 +162,7 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboStreetsIndices;
 
+	globjects::ref_ptr<globjects::Framebuffer> m_fboStandardCity;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboNormalVisualization;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboOutlineHints;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboStaticTransparancy;
@@ -170,6 +172,7 @@ protected:
 	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
 	globjects::ref_ptr<globjects::Framebuffer> m_fboEdgeEnhancement;
 
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_standardCityTexture;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_normalVisualizationTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_staticTransparancyTextures;

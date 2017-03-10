@@ -91,6 +91,7 @@ void Painter::initialize()
 	m_vboSAQIndices = new globjects::Buffer();
 	m_vboPlaneIndices = new globjects::Buffer();
 	m_vboStreetsIndices = new globjects::Buffer();
+	m_fboStandardCity = new globjects::Framebuffer();
 	m_fboNormalVisualization = new globjects::Framebuffer();
 	m_fboOutlineHints = new globjects::Framebuffer();
 	m_fboStaticTransparancy = new globjects::Framebuffer();
@@ -509,31 +510,38 @@ void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChange
 	unsetGlState();
 }
 
-void Painter::drawNormalScene(bool inputChanged)
+//Use this to render the city with standard settings to the texture 'm_standardCityTexture'
+void Painter::drawStandardCity(bool inputChanged)
 {
 	setGlState();
-	
-	m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
-	m_fboNormalVisualization->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+
+	m_fboStandardCity->bind(GL_FRAMEBUFFER);
+	m_fboStandardCity->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	
-	update(m_generalProgram, false, true);
+
+	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 
-	update(m_generalProgram, true, true, true, inputChanged);
+	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+}
 
-	mixWithEnhancedEdges(*(m_normalVisualizationTextures.at(0)), inputChanged);
+void Painter::drawNormalScene(bool inputChanged)
+{
+	setGlState();
+
+	drawStandardCity(inputChanged);
+	mixWithEnhancedEdges(*(m_standardCityTexture.at(0)), inputChanged);
 
 	unsetGlState();
 }
 
-void Painter::drawOutlineHintsVisualization(bool inputChanged)
+void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -543,6 +551,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## Render city+plane+streets image to FBO ##############
+	/*
 	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
 	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -555,6 +564,8 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
+	*/
+	drawStandardCity(inputChanged);
 	
 	//########## Render extruded line to ABuffer ##############
 	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
@@ -608,7 +619,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawStaticTransparancyVisualization(bool inputChanged)
+void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -645,7 +656,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
+void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -707,7 +718,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawGhostedViewVisualization(bool inputChanged)
+void Painter::drawGhostedViewVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -733,7 +744,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
 	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
 
-	//########## render transparancy mask texture ############
+	//########## render mask texture ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
@@ -758,7 +769,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawFenceHintsVisualization(bool inputChanged)
+void Painter::drawFenceHintsVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 	//TODO: Viel. alles zusammen in einem Durchlauf möglich -> keine extra Texturen??
@@ -1032,6 +1043,7 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 
 void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
 {
+	//TODO - other setup possible?
 	setUniformOn(program, "haloColor", m_currentHaloColor);
 
 	program->use();
@@ -1196,6 +1208,7 @@ void Painter::rotateModelByTime(double timeDifference)
 
 void Painter::setUpFBOs()
 {
+	setFBO(m_fboStandardCity, &m_standardCityTexture, 1);
 	setFBO(m_fboNormalVisualization, &m_normalVisualizationTextures, 1);
 	setFBO(m_fboEdgeEnhancement, &m_enhancedEdgeTexture, 2);
 	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 4);
