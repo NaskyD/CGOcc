@@ -463,55 +463,15 @@ void Painter::draw(short renderMode)
 	m_inputChanged = false;
 }
 
-void Painter::drawEdgeEnhancementFromTexture(globjects::Texture & source)
-{
-	m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
-	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	update(m_edgeDetectionProgram,false, true, true);
-
-	GLint loc_texture = m_edgeDetectionProgram->getUniformLocation(std::string("texture0"));
-	if (loc_texture >= 0)
-	{
-		source.bindActive(GL_TEXTURE0);
-		m_edgeDetectionProgram->setUniform(loc_texture, 0);
-	}
-	drawToSAQ(m_edgeDetectionProgram, nullptr);
-
-	//TODO - use or delete dilation program
-	//update(m_dilationFilterProgram, false, true, true);
-	//drawToSAQ(m_dilationFilterProgram, &m_enhancedEdgeTexture);
-
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
-}
-
 void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged)
 {
 	setGlState();
-	/*
-	if (!source)
-	{
-		m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
-		m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT0);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		update(m_generalProgram, false, true);
-		drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
-		drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-		drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-		drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
-
-		update(m_generalProgram, true, true, true, inputChanged);
-		drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
-	}*/
 
 	m_fboEdgeEnhancement->bind(GL_FRAMEBUFFER);
 	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_generalProgram, true, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
-	//drawEdgeEnhancementFromTexture(source);
 
 	m_fboEdgeEnhancement->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -526,21 +486,18 @@ void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChange
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	update(m_mixEnhancedEdgesProgram, false, false, true, inputChanged);
-	if (inputChanged)
+	GLint loc_texture0 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture0"));
+	if (loc_texture0 >= 0)
 	{
-		GLint loc_texture0 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture0"));
-		if (loc_texture0 >= 0)
-		{
-			m_enhancedEdgeTexture.at(1)->bindActive(GL_TEXTURE0);
-			m_mixEnhancedEdgesProgram->setUniform(loc_texture0, 0);
-		}
+		m_enhancedEdgeTexture.at(1)->bindActive(GL_TEXTURE0);
+		m_mixEnhancedEdgesProgram->setUniform(loc_texture0, 0);
+	}
 
-		GLint loc_texture1 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture1"));
-		if (loc_texture1 >= 0)
-		{
-			source.bindActive(GL_TEXTURE1);
-			m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
-		}
+	GLint loc_texture1 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture1"));
+	if (loc_texture1 >= 0)
+	{
+		source.bindActive(GL_TEXTURE1);
+		m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
 	}
 
 	drawToSAQ(m_mixEnhancedEdgesProgram, nullptr);
@@ -556,7 +513,6 @@ void Painter::drawNormalScene(bool inputChanged)
 	m_fboNormalVisualization->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	
-
 	update(m_generalProgram, false, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
@@ -568,35 +524,8 @@ void Painter::drawNormalScene(bool inputChanged)
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
-	/*
-	m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
-	m_fboNormalVisualization->setDrawBuffer(GL_COLOR_ATTACHMENT1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
-	drawEdgeEnhancementFromTexture(*(m_normalVisualizationTextures.at(1)));
-
-	//m_fboNormalVisualization->bind(GL_FRAMEBUFFER);
-	update(m_mixEnhancedEdgesProgram, false, false, true, inputChanged);
-	//TODO - extra combined bind?
-	GLint loc_texture0 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture0"));
-	if (loc_texture0 >= 0)
-	{
-		m_enhancedEdgeTexture.at(0)->bindActive(GL_TEXTURE0);
-		m_mixEnhancedEdgesProgram->setUniform(loc_texture0, 0);
-	}
-
-	GLint loc_texture1 = m_mixEnhancedEdgesProgram->getUniformLocation(std::string("texture1"));
-	if (loc_texture1 >= 0)
-	{
-		m_normalVisualizationTextures.at(0)->bindActive(GL_TEXTURE1);
-		m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
-	}
-	drawToSAQ(m_mixEnhancedEdgesProgram, nullptr);
-	*/
-
 	mixWithEnhancedEdges(*(m_normalVisualizationTextures.at(0)), inputChanged);
 
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	unsetGlState();
 }
 
@@ -635,7 +564,6 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 	m_currentHaloColor = c_lineColor;
 
 	update(m_haloLineABufferedProgram, false, true, true, inputChanged, true);
@@ -656,23 +584,23 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged)
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 		m_currentHaloColor = c_line2Color;
 
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
+	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
-
 	//########## Render to the Screen ##############
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
-	m_outlineHintsTextures.at(1)->bindActive(GL_TEXTURE1);
-	m_outlineHintsTextures.at(2)->bindActive(GL_TEXTURE2);
-
 	update(m_outlineHintsProgram, false, false, true, inputChanged);
 	drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_outlineHintsTextures.at(3)), inputChanged);
+
 	unsetGlState();
 }
 
@@ -700,12 +628,16 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged)
 	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 
 	//drawToSAQ(m_sortABufferProgram, nullptr);
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render to the Screen ##############
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_transparentCityProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_transparentCityProgram, nullptr);
+	drawToSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_staticTransparancyTextures.at(0)), inputChanged);
+
 	unsetGlState();
 }
 
@@ -758,15 +690,16 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged)
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
-
 	//########## Render to the Screen ##############
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	m_adaptiveTransparancyPerPixelTextures[0]->bindActive(GL_TEXTURE0);
-	m_adaptiveTransparancyPerPixelTextures[1]->bindActive(GL_TEXTURE1);
-	m_adaptiveTransparancyPerPixelTextures[2]->bindActive(GL_TEXTURE2);
 	update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_adaptiveTransparancyPerPixelTextures.at(3)), inputChanged);
+
 	unsetGlState();
 }
 
@@ -807,15 +740,16 @@ void Painter::drawGhostedViewVisualization(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_maskingBoxFilterForGhostedViewProgram, false, true, true, inputChanged);
 	drawToSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render to the screen ##############
+	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT4);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	m_ghostedViewTextures[0]->bindActive(GL_TEXTURE0);
-	m_ghostedViewTextures[1]->bindActive(GL_TEXTURE1);
-	m_ghostedViewTextures[3]->bindActive(GL_TEXTURE3);
 	update(m_ghostedViewProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_ghostedViewTextures.at(4)), inputChanged);
 
 	unsetGlState();
 }
@@ -856,16 +790,17 @@ void Painter::drawFenceHintsVisualization(bool inputChanged)
 	drawFenceGradient(true, c_lineColor);
 	//drawFenceGradient(c_line2Color);
 	glDisable(GL_BLEND);
-
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	
 	//########## render to screen ##############
+	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	m_fenceHintsTextures[0]->bindActive(GL_TEXTURE0);
-	m_fenceHintsTextures[1]->bindActive(GL_TEXTURE1);
 	update(m_fenceHintsProgram, false, false, true, inputChanged);
 	drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 	
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_fenceHintsTextures.at(2)), inputChanged);
+
 	unsetGlState();
 }
 
@@ -1249,11 +1184,11 @@ void Painter::setUpFBOs()
 {
 	setFBO(m_fboNormalVisualization, &m_normalVisualizationTextures, 1);
 	setFBO(m_fboEdgeEnhancement, &m_enhancedEdgeTexture, 2);
-	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 3);
-	setFBO(m_fboStaticTransparancy, nullptr, 0);
-	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
-	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
-	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 2);
+	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 4);
+	setFBO(m_fboStaticTransparancy, &m_staticTransparancyTextures, 1);
+	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 4);
+	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 5);
+	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 3);
 	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
 }
 

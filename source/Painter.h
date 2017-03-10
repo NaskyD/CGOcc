@@ -63,7 +63,6 @@ public:
 
 protected:
 	//effects
-	void drawEdgeEnhancementFromTexture(globjects::Texture & source);
 	void mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged);
 
 	//techniques
@@ -169,6 +168,7 @@ protected:
 
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_normalVisualizationTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_staticTransparancyTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_adaptiveTransparancyPerPixelTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_ghostedViewTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
