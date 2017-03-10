@@ -222,8 +222,8 @@ bool MeshLoader::import3DFromFile(const std::string & file)
 		fin.close();
 	}
 	else {
-		printf("Couldn't open file: %s\n", file.c_str());
-		printf("%s\n", m_importer.GetErrorString());
+		std::cout << "Couldn't open file: " << file.c_str() << std::endl;
+		std::cout << m_importer.GetErrorString() << std::endl;
 		return false;
 	}
 	

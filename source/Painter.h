@@ -4,6 +4,8 @@
 
 #include <glm/matrix.hpp>
 
+#include <il.h>
+
 #include <globjects\Program.h>
 #include <globjects\VertexArray.h>
 #include <globjects\Buffer.h>
@@ -101,6 +103,8 @@ protected:
 	void setUpFBOs();
 	void setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures);
 	void setUpABuffer();
+	void setUpCubeMap();
+	void loadImageToGPU(std::string & filename, gl::GLenum target, ILuint handle);
 
 protected:
 	MeshLoader m_meshLoader;
@@ -176,6 +180,7 @@ protected:
 	gl::GLuint m_aBufferTextureArrayID;
 	gl::GLuint m_aBufferIndexTexture;
 	gl::GLuint m_transparentTypedTexture;
+	gl::GLuint m_cubeMap;
 
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
 

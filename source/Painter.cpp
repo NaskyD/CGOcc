@@ -2,8 +2,10 @@
 
 #include <ratio>
 #include <cmath>
-#include <stdio.h>
+#include <fstream>
 #include <iostream>
+#include <stdio.h>
+#include <stdexcept>
 
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/transform.hpp>
@@ -131,6 +133,7 @@ void Painter::initialize()
 	setUpFBOs();
 	m_aBufferTextureArrayID = 0;
 	setUpABuffer();
+	setUpCubeMap();
 
 	//set up timer
 	std::chrono::steady_clock currentTime;
@@ -352,6 +355,7 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 		setUniformOn(program, "lightVector", m_sceneLight1);
 		setUniformOn(program, "lightVector2", m_sceneLight2);
 		setUniformOn(program, "clearColor", c_clearColor);
+		
 	}
 
 	if (newFrame)
@@ -1007,6 +1011,14 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
+	GLint loc_cube = program->getUniformLocation(std::string("cubeMap"));
+	if (useNormals && loc_cube >= 0)
+	{
+		glActiveTexture(GL_TEXTURE10);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
+		program->setUniform(loc_cube, 10);
+	}
+
 	program->use();
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
@@ -1026,6 +1038,7 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 	m_vaoSAQ->bind();
 	m_vboSAQIndices->bind(GL_ARRAY_BUFFER);
 
+	//TODO - some textures could be statically bind only once
 	if(textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1068,6 +1081,7 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, globjects
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
+	//TODO - some textures could be statically bind only once
 	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1263,4 +1277,60 @@ void Painter::setUpABuffer()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
 	glBindImageTexture(2, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+}
+
+void Painter::setUpCubeMap()
+{
+	ilInit();
+
+	ILuint imageID[6];
+	ilGenImages(6, imageID);
+
+	glGenTextures(1, &m_cubeMap);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, static_cast<GLint>(GL_CLAMP_TO_EDGE));
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, static_cast<GLint>(GL_CLAMP_TO_EDGE));
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, static_cast<GLint>(GL_CLAMP_TO_EDGE));
+	
+	try {
+		loadImageToGPU(std::string("data/cubeTexture/2_xPos(Right).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_X, imageID[0]);
+		loadImageToGPU(std::string("data/cubeTexture/3_xNeg(Left).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_X, imageID[1]);
+
+		loadImageToGPU(std::string("data/cubeTexture/4_yPos(Top).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Y, imageID[2]);
+		loadImageToGPU(std::string("data/cubeTexture/5_yNeg(Bottom).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, imageID[3]);
+
+		loadImageToGPU(std::string("data/cubeTexture/0_zNeg(Back).bmp"), GL_TEXTURE_CUBE_MAP_POSITIVE_Z, imageID[4]);
+		loadImageToGPU(std::string("data/cubeTexture/1_zPos(Front).bmp"), GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, imageID[5]);
+	}
+	catch (std::exception & e)
+	{
+		std::cout << e.what() << std::endl;
+	}
+	
+	ilDeleteImages(6, imageID);
+}
+
+void Painter::loadImageToGPU(std::string & filename, GLenum target, ILuint handle)
+{
+	ILboolean loadSuccess = false;
+	unsigned int width, height = 0;
+
+	ilBindImage(handle);
+	ilEnable(IL_ORIGIN_SET);
+	ilOriginFunc(IL_ORIGIN_LOWER_LEFT);
+
+	loadSuccess = ilLoadImage(filename.c_str());
+
+	if (!loadSuccess) {
+		ilDeleteImages(1, &handle);
+		throw std::runtime_error("Could not load " + filename + " texture");
+	}
+
+	width = ilGetInteger(IL_IMAGE_WIDTH);
+	height = ilGetInteger(IL_IMAGE_HEIGHT);
+	ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE);
+
+	glTexImage2D(target, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, ilGetData());
 }
