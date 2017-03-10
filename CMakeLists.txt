@@ -18,6 +18,8 @@ include(ExternalProject)
 include(WriteCompilerDetectionHeader OPTIONAL RESULT_VARIABLE WriterCompilerDetectionHeaderFound)
 include(${CMAKE_MODULE_PATH}/Custom.cmake)
 include(${CMAKE_MODULE_PATH}/Findassimp.cmake)
+include(${CMAKE_MODULE_PATH}/FindGLFW.cmake)
+include(${CMAKE_MODULE_PATH}/FindDevIL.cmake)
 
 # 
 # Project description and (meta) information
@@ -33,10 +35,6 @@ set(META_PROJECT_NAME        "occlusionhints")
 # Project options
 option(BUILD_SHARED_LIBS     "Build shared instead of static libraries."              ON)
 option(OPTION_SELF_CONTAINED "Create a self-contained install with all dependencies." OFF)
-option(OPTION_BUILD_TESTS    "Build tests."                                           ON)
-option(OPTION_BUILD_DOCS     "Build documentation."                                   OFF)
-option(OPTION_BUILD_EXAMPLES "Build examples."                                        OFF)
-
 
 # 
 # Declare project
@@ -115,6 +113,15 @@ if(NOT SYSTEM_DIR_INSTALL)
     endif()
 endif()
 
+# Find packages
+find_package(cpplocate REQUIRED)
+find_package(OpenGL REQUIRED)
+find_package(DevIL REQUIRED)
+find_package(GLFW REQUIRED)
+find_package(GLM REQUIRED)
+find_package(ASSIMP REQUIRED)
+find_package(glbinding REQUIRED)
+find_package(globjects REQUIRED)
 
 # 
 # Project modules
