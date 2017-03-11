@@ -568,7 +568,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 
 	if (!forCompositing)
 	{
-		//########## Render city+plane+streets image to FBO ##############
+		//########## Render standard city to FBO ##############
 		drawStandardCity(inputChanged);
 	}
 
@@ -623,20 +623,29 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		}
 
 		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
-
 		glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		update(m_outlineHintsProgram, false, false, true, inputChanged);
 		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
 	else
 	{
 		//########## Render to the Screen ##############
 		m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+
+		if (inputChanged)
+		{
+			m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, m_outlineHintsTextures.at(2));
+		}
+
 		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 		glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		update(m_outlineHintsProgram, false, false, true, inputChanged);
 		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 
@@ -683,13 +692,21 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 		}
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 		update(m_transparentCityProgram, false, false, true, inputChanged);
 		drawToSAQ(m_transparentCityProgram, nullptr);
+
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
 	else
 	{
 		//########## Render to the Screen ##############
+		if (inputChanged)
+		{
+			m_fboStaticTransparancy->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboStaticTransparancy->attachTexture(GL_COLOR_ATTACHMENT2, m_staticTransparancyTextures.at(0));
+		}
+
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		update(m_transparentCityProgram, false, false, true, inputChanged, true);
 		drawToSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
@@ -729,37 +746,67 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
 	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
 
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	update(m_maskingBoxFilterForAdaptiveTransparancyProgram, false, false, true, inputChanged);
 	drawToSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
-	
-	//########## render city & flatLines to texture ############
-	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	update(m_generalProgram, false, true, true, inputChanged);
-	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
-	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
-	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
-	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
-
-	update(m_generalProgram, true, true);
-	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
-
-	//########## Render to the Screen ##############
-	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT3);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	
+	if (!forCompositing)
+	{
+		//########## Render standard city to FBO ##############
+		drawStandardCity(inputChanged);
+	}
 
-	mixWithEnhancedEdges(*(m_adaptiveTransparancyPerPixelTextures.at(3)), inputChanged);
+
+	if (forCompositing && resultTexture)
+	{
+		//########## Render to resultTexture ##############
+		m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
+
+		if (inputChanged)
+		{
+			m_fboAdaptiveTranspancyPerPixel->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboAdaptiveTranspancyPerPixel->attachTexture(GL_COLOR_ATTACHMENT2, resultTexture);
+		}
+
+		m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
+		drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	}
+	else
+	{
+		//########## Render to the Screen ##############
+		m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
+
+		if (inputChanged)
+		{
+			m_fboAdaptiveTranspancyPerPixel->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboAdaptiveTranspancyPerPixel->attachTexture(GL_COLOR_ATTACHMENT2, m_adaptiveTransparancyPerPixelTextures.at(2));
+		}
+
+		m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
+		drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+		mixWithEnhancedEdges(*(m_adaptiveTransparancyPerPixelTextures.at(2)), inputChanged);
+	}
 
 	unsetGlState();
 }
@@ -1263,7 +1310,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboEdgeEnhancement, &m_enhancedEdgeTexture, 2);
 	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 3);
 	setFBO(m_fboStaticTransparancy, &m_staticTransparancyTextures, 1);
-	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 4);
+	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 5);
 	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 3);
 	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);

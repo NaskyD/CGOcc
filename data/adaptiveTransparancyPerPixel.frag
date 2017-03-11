@@ -1,8 +1,8 @@
 #version 430
 
 uniform vec3 clearColor;
+layout (location = 11) uniform sampler2D cityTexture;
 uniform sampler2D texture1;									//mask
-uniform sampler2D texture2;									//city
 coherent uniform layout(size4x32) image2DArray aBufferImg;
 coherent uniform layout(size1x32) uimage2D aBufferIndexImg;
 coherent uniform layout(size1x32) uimage2D typeIdImg;
@@ -22,7 +22,7 @@ void main()
 	uint typeNumber = uint(imageLoad(typeIdImg, fragCoords));
 
 	vec4 transparancyMask = texture(texture1, v_screenAlignedQuad_UV);
-	vec4 cityColor = texture(texture2, v_screenAlignedQuad_UV);
+	vec4 cityColor = texture(cityTexture, v_screenAlignedQuad_UV);
 	
 	//Load fragments into a local memory array for sorting
 	vec4 fragmentList[maxLayer];

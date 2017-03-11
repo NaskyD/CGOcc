@@ -4,7 +4,7 @@ in vec2 v_screenAlignedQuad_UV;
 
 uniform int windowWidth;
 uniform int windowHeight;
-uniform sampler2D texture0;
+uniform sampler2D texture0;		//simple mask
 
 layout (location = 0) out vec4 FragColor;
 
