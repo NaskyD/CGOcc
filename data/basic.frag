@@ -6,7 +6,7 @@ uniform vec4 specifiedColor;
 uniform bool useNormals;
 uniform bool renderDepthValueForTextureUsage;
 
-uniform samplerCube cubeMap;
+layout (location = 10) uniform samplerCube cubeMap;
 
 in vec3 v_normals;
 

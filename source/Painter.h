@@ -60,6 +60,7 @@ public:
 									std::vector<glm::vec3> & vertices,
 									std::vector<unsigned int> & indices, bool useNormals);
 
+	void bindStaticTextures(globjects::Program & program);
 	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false, bool to_fromABuffer = false);
 	void draw(short renderMode);
 
@@ -106,6 +107,7 @@ protected:
 	void setUpABuffer();
 	void setUpCubeMap();
 	void loadImageToGPU(std::string & filename, gl::GLenum target, ILuint handle);
+	void bindStaticTextures();
 
 protected:
 	MeshLoader m_meshLoader;
@@ -135,7 +137,7 @@ protected:
 	//#### mix of visualizations ####
 	globjects::ref_ptr<globjects::Program> m_mixByMaskProgram;
 
-	//#### helper programs for comining visualizations ####
+	//#### helper programs for combining visualizations ####
 	globjects::ref_ptr<globjects::Program> m_perspectiveDepthMaskProgram;
 
 	//#### programs for additional effects ####

@@ -5,7 +5,7 @@ layout (location = 0) out vec4 FragColor;
 uniform int windowWidth;
 uniform int windowHeight;
 uniform vec4 haloColor;
-uniform sampler2D texture0;		//city texture
+layout (location = 11) uniform sampler2D cityTexture;
 coherent uniform layout(size4x32) image2DArray aBufferImg;
 coherent uniform layout(size1x32) uimage2D aBufferIndexImg;
 
@@ -18,7 +18,7 @@ const int maxLayer = 16;
 
 void main()
 {
-	vec4 actualCityFragment = texture(texture0, v_screenAlignedQuad_UV);
+	vec4 actualCityFragment = texture(cityTexture, v_screenAlignedQuad_UV);
 	
 	ivec2 fragCoords = ivec2(gl_FragCoord.xy);
 	uint maxIndex = imageLoad(aBufferIndexImg, fragCoords).x;
@@ -37,7 +37,7 @@ void main()
 				vec2 aBufferKernel = vec2(float(dx), float(dy));
 				
 				vec4 envLineTex = imageLoad(aBufferImg, ivec3((fragCoords + aBufferKernel), i));
-				vec4 envCityTex = texture(texture0, v_screenAlignedQuad_UV + textureKernel);
+				vec4 envCityTex = texture(cityTexture, v_screenAlignedQuad_UV + textureKernel);
 				
 				//city geometry occludes line geometry
 				if(envLineTex.a >= envCityTex.a && envLineTex.r > 0.5)

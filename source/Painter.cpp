@@ -135,6 +135,7 @@ void Painter::initialize()
 	m_aBufferTextureArrayID = 0;
 	setUpABuffer();
 	setUpCubeMap();
+	bindStaticTextures();
 
 	//set up timer
 	std::chrono::steady_clock currentTime;
@@ -348,6 +349,24 @@ void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao
 	vao->unbind();
 }
 
+void Painter::bindStaticTextures(globjects::Program & program)
+{
+	GLint loc_cube = program.getUniformLocation(std::string("cubeMap"));
+	if (loc_cube >= 0)
+	{
+		glActiveTexture(GL_TEXTURE10);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
+		program.setUniform(loc_cube, 10);
+	}
+
+	GLint loc_city = program.getUniformLocation(std::string("cityTexture"));
+	if (loc_city >= 0)
+	{
+		m_standardCityTexture.at(0)->bindActive(GL_TEXTURE11);
+		program.setUniform(loc_city, 11);
+	}
+}
+
 void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged, bool to_fromABuffer)
 {
 	if (inputChanged)
@@ -356,7 +375,6 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 		setUniformOn(program, "lightVector", m_sceneLight1);
 		setUniformOn(program, "lightVector2", m_sceneLight2);
 		setUniformOn(program, "clearColor", c_clearColor);
-		
 	}
 
 	if (newFrame)
@@ -534,10 +552,8 @@ void Painter::drawStandardCity(bool inputChanged)
 void Painter::drawNormalScene(bool inputChanged)
 {
 	setGlState();
-
 	drawStandardCity(inputChanged);
 	mixWithEnhancedEdges(*(m_standardCityTexture.at(0)), inputChanged);
-
 	unsetGlState();
 }
 
@@ -545,39 +561,25 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 {
 	setGlState();
 
+	//########## Render city+plane+streets image to FBO ##############
+	drawStandardCity(inputChanged);
+
 	//########## clear A-Buffer and IndexImage #############
 	update(m_clearABufferProgram, false, false, true, inputChanged, true);
 	drawToSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-
-	//########## Render city+plane+streets image to FBO ##############
-	/*
-	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
-	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	update(m_generalProgram, false, true, true, inputChanged);
-	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
-	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
-
-	update(m_generalProgram, true, true);
-	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
-	*/
-	drawStandardCity(inputChanged);
 	
 	//########## Render extruded line to ABuffer ##############
 	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
+	//TODO second LINE
 	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
 	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
 	//########## Render halo image to FBO ##############
 	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
 	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	m_currentHaloColor = c_lineColor;
 
@@ -597,7 +599,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 
 		//########## Render halo from line2 image to FBO ##############
 		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		m_currentHaloColor = c_line2Color;
 
@@ -605,7 +607,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 	}
 
 	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
-	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
 	//########## Render to the Screen ##############
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -614,7 +616,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
-	mixWithEnhancedEdges(*(m_outlineHintsTextures.at(3)), inputChanged);
+	mixWithEnhancedEdges(*(m_outlineHintsTextures.at(2)), inputChanged);
 
 	unsetGlState();
 }
@@ -1022,14 +1024,6 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
-	GLint loc_cube = program->getUniformLocation(std::string("cubeMap"));
-	if (useNormals && loc_cube >= 0)
-	{
-		glActiveTexture(GL_TEXTURE10);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
-		program->setUniform(loc_cube, 10);
-	}
-
 	program->use();
 	vao->bind();
 	vbo->bind(GL_ELEMENT_ARRAY_BUFFER);
@@ -1046,12 +1040,8 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 	//TODO - other setup possible?
 	setUniformOn(program, "haloColor", m_currentHaloColor);
 
-	program->use();
-	m_vaoSAQ->bind();
-	m_vboSAQIndices->bind(GL_ARRAY_BUFFER);
-
 	//TODO - some textures could be statically bind only once
-	if(textures)
+	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
 		{
@@ -1064,6 +1054,10 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 			}
 		}
 	}
+
+	program->use();
+	m_vaoSAQ->bind();
+	m_vboSAQIndices->bind(GL_ARRAY_BUFFER);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
@@ -1211,7 +1205,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboStandardCity, &m_standardCityTexture, 1);
 	setFBO(m_fboNormalVisualization, &m_normalVisualizationTextures, 1);
 	setFBO(m_fboEdgeEnhancement, &m_enhancedEdgeTexture, 2);
-	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 4);
+	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 3);
 	setFBO(m_fboStaticTransparancy, &m_staticTransparancyTextures, 1);
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 4);
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 5);
@@ -1348,4 +1342,31 @@ void Painter::loadImageToGPU(std::string & filename, GLenum target, ILuint handl
 	ilConvertImage(IL_RGB, IL_UNSIGNED_BYTE);
 
 	glTexImage2D(target, 0, GL_RGB8, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, ilGetData());
+}
+
+void Painter::bindStaticTextures()
+{
+	bindStaticTextures(*m_generalProgram);
+	bindStaticTextures(*m_outlineHintsProgram);
+	bindStaticTextures(*m_transparentCityProgram);
+	bindStaticTextures(*m_adaptiveTransparancyPerPixelProgram);
+	bindStaticTextures(*m_ghostedViewProgram);
+	bindStaticTextures(*m_fenceHintsProgram);
+	bindStaticTextures(*m_footprintProgram);
+	bindStaticTextures(*m_haloLineABufferedProgram);
+	bindStaticTextures(*m_toABufferOnlyProgram);
+	bindStaticTextures(*m_extrudedLinetoABufferOnlyProgram);
+	bindStaticTextures(*m_clearABufferProgram);
+	bindStaticTextures(*m_sortABufferProgram);
+	bindStaticTextures(*m_toABufferTypedProgram);
+	bindStaticTextures(*m_maskingBoxFilterForAdaptiveTransparancyProgram);
+	bindStaticTextures(*m_maskingBoxFilterForGhostedViewProgram);
+	bindStaticTextures(*m_fenceHintsCubeProgram);
+	bindStaticTextures(*m_fenceHintsLineProgram);
+	bindStaticTextures(*m_fenceGradientProgram);
+	bindStaticTextures(*m_mixByMaskProgram);
+	bindStaticTextures(*m_perspectiveDepthMaskProgram);
+	bindStaticTextures(*m_edgeDetectionProgram);
+	bindStaticTextures(*m_dilationFilterProgram);
+	bindStaticTextures(*m_mixEnhancedEdgesProgram);
 }
