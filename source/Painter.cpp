@@ -693,7 +693,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		update(m_transparentCityProgram, false, false, true, inputChanged);
+		update(m_transparentCityProgram, false, false, true, inputChanged, true);
 		drawToSAQ(m_transparentCityProgram, nullptr);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -857,7 +857,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 		m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		update(m_ghostedViewProgram, false, false, true, inputChanged, true);
+		update(m_ghostedViewProgram, false, false, true, inputChanged);
 		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -876,7 +876,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 		m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		update(m_ghostedViewProgram, false, false, true, inputChanged, true);
+		update(m_ghostedViewProgram, false, false, true, inputChanged);
 		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -936,15 +936,46 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 	}
 	glDisable(GL_BLEND);
 	
-	//########## render to screen ##############
-	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_fenceHintsProgram, false, false, true, inputChanged);
-	drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
-	
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	if (forCompositing && resultTexture)
+	{
+		//########## Render to resultTexture ##############
+		m_fboFenceHints->bind(GL_FRAMEBUFFER);
 
-	mixWithEnhancedEdges(*(m_fenceHintsTextures.at(2)), inputChanged);
+		if (inputChanged)
+		{
+			m_fboFenceHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboFenceHints->attachTexture(GL_COLOR_ATTACHMENT2, resultTexture);
+		}
+
+		m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_fenceHintsProgram, false, false, true, inputChanged);
+		drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	}
+	else
+	{
+		//########## Render to the Screen ##############
+		m_fboFenceHints->bind(GL_FRAMEBUFFER);
+
+		if (inputChanged)
+		{
+			m_fboFenceHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboFenceHints->attachTexture(GL_COLOR_ATTACHMENT2, m_fenceHintsTextures.at(2));
+		}
+
+		m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_fenceHintsProgram, false, false, true, inputChanged);
+		drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+		mixWithEnhancedEdges(*(m_fenceHintsTextures.at(2)), inputChanged);
+	}
 
 	unsetGlState();
 }
