@@ -267,7 +267,7 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/footprint.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
 	);
-	m_ghostedViewProgram->link();
+	m_footprintProgram->link();
 
 	m_mixByMaskProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
@@ -815,49 +815,74 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 {
 	setGlState();
 
-	//########## render city to Texture ############
+	if (!forCompositing)
+	{
+		//########## Render standard city to FBO ##############
+		drawStandardCity(inputChanged);
+	}
+
+	//########## render city(without houses) to Texture ############
 	m_fboGhostedView->bind(GL_FRAMEBUFFER);
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	update(m_generalProgram, true, true);
-	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
-
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
 	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
 	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
 
-	//########## render city(without houses) to Texture ############
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
-	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
-	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
-	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
-
 	//########## render mask texture ############
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
 	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
 
 	//########## enhance transparancy mask texture with box-filter ############
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_maskingBoxFilterForGhostedViewProgram, false, true, true, inputChanged);
 	drawToSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
 
-	//########## Render to the screen ##############
-	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT4);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_ghostedViewProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+	if (forCompositing && resultTexture)
+	{
+		//########## Render to resultTexture ##############
+		m_fboGhostedView->bind(GL_FRAMEBUFFER);
 
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+		if (inputChanged)
+		{
+			m_fboGhostedView->attachTexture(GL_COLOR_ATTACHMENT3, 0);
+			m_fboGhostedView->attachTexture(GL_COLOR_ATTACHMENT3, resultTexture);
+		}
 
-	mixWithEnhancedEdges(*(m_ghostedViewTextures.at(4)), inputChanged);
+		m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_ghostedViewProgram, false, false, true, inputChanged, true);
+		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	}
+	else
+	{
+		//########## Render to the Screen ##############
+		m_fboGhostedView->bind(GL_FRAMEBUFFER);
+
+		if (inputChanged)
+		{
+			m_fboGhostedView->attachTexture(GL_COLOR_ATTACHMENT3, 0);
+			m_fboGhostedView->attachTexture(GL_COLOR_ATTACHMENT3, m_ghostedViewTextures.at(3));
+		}
+
+		m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		update(m_ghostedViewProgram, false, false, true, inputChanged, true);
+		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+		mixWithEnhancedEdges(*(m_ghostedViewTextures.at(3)), inputChanged);
+	}
 
 	unsetGlState();
 }
@@ -1311,7 +1336,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboOutlineHints, &m_outlineHintsTextures, 3);
 	setFBO(m_fboStaticTransparancy, &m_staticTransparancyTextures, 1);
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
-	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 5);
+	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
 	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 3);
 	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
 }

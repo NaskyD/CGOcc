@@ -4,7 +4,7 @@ in vec2 v_screenAlignedQuad_UV;
 
 uniform int windowWidth;
 uniform int windowHeight;
-uniform sampler2D texture2;
+uniform sampler2D texture1;			//simple mask
 
 layout (location = 0) out vec4 FragColor;
 
@@ -20,7 +20,7 @@ void main()
 		for (int dy = -rKernel; dy <= rKernel; ++dy)
 		{
 			vec2 textureKernel = vec2(float(dx) * pixelSizeX, float(dy) * pixelSizeY);
-			float boxTexel = texture(texture2, v_screenAlignedQuad_UV + textureKernel).a;
+			float boxTexel = texture(texture1, v_screenAlignedQuad_UV + textureKernel).a;
 			valid = valid + ceil(1-boxTexel);
 		}
 	}
