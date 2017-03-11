@@ -71,11 +71,11 @@ protected:
 
 	//techniques
 	void drawNormalScene(bool inputChanged);
-	void drawOutlineHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawGhostedViewVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawFenceHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawOutlineHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * resultTexture = nullptr);
+	void drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * resultTexture = nullptr);
+	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * resultTexture = nullptr);
+	void drawGhostedViewVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * resultTexture = nullptr);
+	void drawFenceHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * resultTexture = nullptr);
 	void drawFullFlatVisualization(bool inputChanged);
 	void drawFullFootprintVisualization(bool inputChanged);
 

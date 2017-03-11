@@ -562,7 +562,7 @@ void Painter::drawNormalScene(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -611,7 +611,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
-	if (forCompositing)
+	if (forCompositing && resultTexture)
 	{
 		//########## Render to resultTexture ##############
 		m_fboOutlineHints->bind(GL_FRAMEBUFFER);
@@ -628,6 +628,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		update(m_outlineHintsProgram, false, false, true, inputChanged);
 		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
 	else
 	{
@@ -648,7 +649,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 	unsetGlState();
 }
 
-void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -658,7 +659,6 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
-	//TODO: does it really need an own fbo?
 	m_fboStaticTransparancy->bind(GL_FRAMEBUFFER);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -673,19 +673,36 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 
 	//drawToSAQ(m_sortABufferProgram, nullptr);
 
-	//########## Render to the Screen ##############
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_transparentCityProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
+	if (forCompositing && resultTexture)
+	{
+		//########## Render to resultTexture ##############
+		if (inputChanged)
+		{
+			m_fboStaticTransparancy->attachTexture(GL_COLOR_ATTACHMENT0, 0);
+			m_fboStaticTransparancy->attachTexture(GL_COLOR_ATTACHMENT0, resultTexture);
+		}
 
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update(m_transparentCityProgram, false, false, true, inputChanged);
+		drawToSAQ(m_transparentCityProgram, nullptr);
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	}
+	else
+	{
+		//########## Render to the Screen ##############
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update(m_transparentCityProgram, false, false, true, inputChanged, true);
+		drawToSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
 
-	mixWithEnhancedEdges(*(m_staticTransparancyTextures.at(0)), inputChanged);
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+		mixWithEnhancedEdges(*(m_staticTransparancyTextures.at(0)), inputChanged);
+	}
 
 	unsetGlState();
 }
 
-void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -747,7 +764,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	unsetGlState();
 }
 
-void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositing, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -798,7 +815,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 	unsetGlState();
 }
 
-void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * resultTexture)
 {
 	setGlState();
 
