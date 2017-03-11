@@ -66,7 +66,7 @@ protected:
 									std::vector<glm::vec3> & vertices,
 									std::vector<unsigned int> & indices, bool useNormals);
 
-	void bindStaticTextures(globjects::Program & program);
+	void bindStaticTextures(globjects::ref_ptr<globjects::Program> program);
 	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false, bool to_fromABuffer = false);
 
 	//helper draw methods

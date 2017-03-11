@@ -282,21 +282,44 @@ void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao
 	vao->unbind();
 }
 
-void Painter::bindStaticTextures(globjects::Program & program)
+void Painter::bindStaticTextures(globjects::ref_ptr<globjects::Program> program)
 {
-	GLint loc_cube = program.getUniformLocation(std::string("cubeMap"));
+	GLint loc_cube = program->getUniformLocation(std::string("cubeMap"));
 	if (loc_cube >= 0)
 	{
 		glActiveTexture(GL_TEXTURE10);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, m_cubeMap);
-		program.setUniform(loc_cube, 10);
+		program->setUniform(loc_cube, 10);
 	}
 
-	GLint loc_city = program.getUniformLocation(std::string("cityTexture"));
+	GLint loc_city = program->getUniformLocation(std::string("cityTexture"));
 	if (loc_city >= 0)
 	{
 		m_standardCityTexture.at(0)->bindActive(GL_TEXTURE11);
-		program.setUniform(loc_city, 11);
+		program->setUniform(loc_city, 11);
+	}
+
+	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
+	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
+	GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
+
+	if (loc_aBuffer >= 0)
+	{
+		glActiveTexture(GL_TEXTURE3);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
+	}
+	if (loc_aBufferIndexTexture >= 0)
+	{
+		glActiveTexture(GL_TEXTURE4);
+		glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
+	}
+	if (loc_typeIdImg >= 0)
+	{
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
 	}
 }
 
@@ -320,29 +343,6 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 
 	if (to_fromABuffer)
 	{
-		GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
-		GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
-		GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
-
-		if (loc_aBuffer >= 0)
-		{
-			glActiveTexture(GL_TEXTURE3);
-			glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
-			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
-		}
-		if (loc_aBufferIndexTexture >= 0)
-		{
-			glActiveTexture(GL_TEXTURE4);
-			glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
-			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
-		}
-		if (loc_typeIdImg >= 0)
-		{
-			glActiveTexture(GL_TEXTURE0);
-			glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
-			glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
-		}
-
 		setUniformOn(program, "typeId", 0u);
 		setUniformOn(program, "maxLayer", c_aBufferMaxLayers);
 	}
@@ -1403,7 +1403,6 @@ void Painter::setUpABuffer()
 {
 	//initialize A-Buffer
 	glGenTextures(1, &m_aBufferTextureArrayID);
-	glActiveTexture(GL_TEXTURE3);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
@@ -1413,7 +1412,6 @@ void Painter::setUpABuffer()
 
 	//initialize index texture
 	glGenTextures(1, &m_aBufferIndexTexture);
-	glActiveTexture(GL_TEXTURE4);
 	glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
@@ -1424,7 +1422,6 @@ void Painter::setUpABuffer()
 
 	//initialize type texture as image input
 	glGenTextures(1, &m_transparentTypedTexture);
-	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
@@ -1492,29 +1489,29 @@ void Painter::loadImageToGPU(std::string & filename, GLenum target, ILuint handl
 
 void Painter::bindStaticTextures()
 {
-	bindStaticTextures(*m_generalProgram);
-	bindStaticTextures(*m_outlineHintsProgram);
-	bindStaticTextures(*m_transparentCityProgram);
-	bindStaticTextures(*m_adaptiveTransparancyPerPixelProgram);
-	bindStaticTextures(*m_ghostedViewProgram);
-	bindStaticTextures(*m_fenceHintsProgram);
-	bindStaticTextures(*m_footprintProgram);
-	bindStaticTextures(*m_haloLineABufferedProgram);
-	bindStaticTextures(*m_toABufferOnlyProgram);
-	bindStaticTextures(*m_extrudedLinetoABufferOnlyProgram);
-	bindStaticTextures(*m_clearABufferProgram);
-	bindStaticTextures(*m_sortABufferProgram);
-	bindStaticTextures(*m_toABufferTypedProgram);
-	bindStaticTextures(*m_maskingBoxFilterForAdaptiveTransparancyProgram);
-	bindStaticTextures(*m_maskingBoxFilterForGhostedViewProgram);
-	bindStaticTextures(*m_fenceHintsCubeProgram);
-	bindStaticTextures(*m_fenceHintsLineProgram);
-	bindStaticTextures(*m_fenceGradientProgram);
-	//bindStaticTextures(*m_perspectiveDepthMaskProgram);
-	bindStaticTextures(*m_edgeDetectionProgram);
-	bindStaticTextures(*m_dilationFilterProgram);
-	bindStaticTextures(*m_mixEnhancedEdgesProgram);
-	bindStaticTextures(*m_mixByMaskProgram);
-	bindStaticTextures(*m_depthMaskProgram);
-	bindStaticTextures(*m_layerMaskProgram);
+	bindStaticTextures(m_generalProgram);
+	bindStaticTextures(m_outlineHintsProgram);
+	bindStaticTextures(m_transparentCityProgram);
+	bindStaticTextures(m_adaptiveTransparancyPerPixelProgram);
+	bindStaticTextures(m_ghostedViewProgram);
+	bindStaticTextures(m_fenceHintsProgram);
+	bindStaticTextures(m_footprintProgram);
+	bindStaticTextures(m_haloLineABufferedProgram);
+	bindStaticTextures(m_toABufferOnlyProgram);
+	bindStaticTextures(m_extrudedLinetoABufferOnlyProgram);
+	bindStaticTextures(m_clearABufferProgram);
+	bindStaticTextures(m_sortABufferProgram);
+	bindStaticTextures(m_toABufferTypedProgram);
+	bindStaticTextures(m_maskingBoxFilterForAdaptiveTransparancyProgram);
+	bindStaticTextures(m_maskingBoxFilterForGhostedViewProgram);
+	bindStaticTextures(m_fenceHintsCubeProgram);
+	bindStaticTextures(m_fenceHintsLineProgram);
+	bindStaticTextures(m_fenceGradientProgram);
+	//bindStaticTextures(m_perspectiveDepthMaskProgram);
+	bindStaticTextures(m_edgeDetectionProgram);
+	bindStaticTextures(m_dilationFilterProgram);
+	bindStaticTextures(m_mixEnhancedEdgesProgram);
+	bindStaticTextures(m_mixByMaskProgram);
+	bindStaticTextures(m_depthMaskProgram);
+	bindStaticTextures(m_layerMaskProgram);
 }
