@@ -53,8 +53,14 @@ public:
 	void resizeWindow(int width, int height);
 
     void initialize();
-	double getTimeDifference();
+	void draw(short renderMode);
 
+protected:
+	double getTimeDifference();
+	void initializeShader(globjects::Program & program, std::string & pathVertexShader, std::string & pathFragmentShader);
+	void initializeShader_geom(globjects::Program & program, std::string & pathVertexShader, std::string & pathGeometryShader, std::string & pathFragmentShader);
+	void setUpShader();
+	void loadGeometry();
 	void loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao,
 									globjects::ref_ptr<globjects::Buffer> & vboIndices,
 									std::vector<glm::vec3> & vertices,
@@ -62,9 +68,7 @@ public:
 
 	void bindStaticTextures(globjects::Program & program);
 	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false, bool to_fromABuffer = false);
-	void draw(short renderMode);
 
-protected:
 	//helper draw methods
 	void mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged);
 	void drawStandardCity(bool inputChanged);
@@ -100,9 +104,7 @@ protected:
 	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::vec4 & value) const;
 	void setUniformOn(globjects::ref_ptr<globjects::Program> program, const std::string & name, const glm::mat4x4 & value) const;
 
-	void loadGeometry();
 	void setUpMatrices();
-	void setUpShader();
 	void rotateModelByTime(double timeDifference);
 	void setUpFBOs();
 	void setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures);

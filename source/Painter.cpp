@@ -160,163 +160,72 @@ double Painter::getTimeDifference()
 	return timeSpan;
 }
 
+void Painter::initializeShader(globjects::Program & program, std::string & pathVertexShader, std::string & pathFragmentShader)
+{
+	program.attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, pathVertexShader),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, pathFragmentShader)
+	);
+	program.link();
+}
+
+void Painter::initializeShader_geom(globjects::Program & program, std::string & pathVertexShader, std::string & pathGeometryShader, std::string & pathFragmentShader)
+{
+	program.attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, pathVertexShader),
+		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, pathGeometryShader),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, pathFragmentShader)
+	);
+	program.link();
+}
+
 void Painter::setUpShader()
 {
-	m_generalProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basic.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
-	);
-	m_generalProgram->link();
+	std::string bp{ "data/shader/" };
 
-	m_outlineHintsProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/outlineHints.frag")
-	);
-	m_outlineHintsProgram->link();
+	initializeShader(*m_generalProgram, bp + "basic.vert", bp + "basic.frag");
+	initializeShader(*m_mixByMaskProgram, bp + "screenAlignedQuad.vert", bp + "mixByMask.frag");
 
-	m_extrudedLinetoABufferOnlyProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
-		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/extrudeLines.geom"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferOnly.frag")
-	);
-	m_extrudedLinetoABufferOnlyProgram->link();
+	//#### visualization techniques
+	initializeShader(*m_outlineHintsProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/outlineHints.frag");
+	initializeShader(*m_transparentCityProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/staticTransparancy.frag");
+	initializeShader(*m_adaptiveTransparancyPerPixelProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/adaptiveTransparancyPerPixel.frag");
+	initializeShader(*m_ghostedViewProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/ghostedView.frag");
+	initializeShader(*m_fenceHintsProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/fenceHints.frag");
+	initializeShader(*m_footprintProgram, bp + "visualizationTechniques/footprint.vert", bp + "basic.frag");
 
-	m_haloLineABufferedProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/haloLineABuffered.frag")
-	);
-	m_haloLineABufferedProgram->link();
+	//#### A-Buffer related
+	initializeShader_geom(*m_extrudedLinetoABufferOnlyProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/extrudeLines.geom", bp + "helperShader/drawToABufferOnly.frag");
+	initializeShader(*m_haloLineABufferedProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/haloLineABuffered.frag");
+	initializeShader(*m_clearABufferProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/clearABuffer.frag");
+	initializeShader(*m_sortABufferProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/sortABuffer.frag");	//TODO - not used?
+	initializeShader(*m_toABufferOnlyProgram, bp + "basic.vert", bp + "helperShader/drawToABufferOnly.frag");
+	initializeShader(*m_toABufferTypedProgram, bp + "basic.vert", bp + "helperShader/drawToABufferTyped.frag");
 
-	m_clearABufferProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/clearABuffer.frag")
-	);
-	m_clearABufferProgram->link();
+	//#### mask shader
+	initializeShader(*m_maskingBoxFilterForAdaptiveTransparancyProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/maskingBoxFilterAdaptiveTransparancy.frag");
+	initializeShader(*m_maskingBoxFilterForGhostedViewProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/maskingBoxFilterGhostedView.frag");
+	initializeShader(*m_depthMaskProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/depthMask.frag");
+	initializeShader(*m_layerMaskProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/layerdMask.frag");
 
-	//TODO - Not used?
-	m_sortABufferProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/sortABuffer.frag")
-	);
-	m_sortABufferProgram->link();
-
-	m_toABufferOnlyProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basic.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferOnly.frag")
-	);
-	m_toABufferOnlyProgram->link();
-
-	m_toABufferTypedProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basic.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/drawToABufferTyped.frag")
-	);
-	m_toABufferTypedProgram->link();
-
-	m_transparentCityProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/staticTransparancy.frag")
-	);
-	m_transparentCityProgram->link();
-
-	m_adaptiveTransparancyPerPixelProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/adaptiveTransparancyPerPixel.frag")
-	);
-	m_adaptiveTransparancyPerPixelProgram->link();
-
-	m_maskingBoxFilterForAdaptiveTransparancyProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/maskingBoxFilterAdaptiveTransparancy.frag")
-	);
-	m_maskingBoxFilterForAdaptiveTransparancyProgram->link();
-
-	m_maskingBoxFilterForGhostedViewProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/maskingBoxFilterGhostedView.frag")
-	);
-	m_maskingBoxFilterForGhostedViewProgram->link();
-
-	m_ghostedViewProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/ghostedView.frag")
-	);
-	m_ghostedViewProgram->link();
-
-	m_fenceHintsProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/fenceHints.frag")
-	);
-	m_fenceHintsProgram->link();
-
-	m_fenceHintsCubeProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
-		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceHintsCube.geom"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
-	);
-	m_fenceHintsCubeProgram->link();
-
-	m_fenceHintsLineProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
-		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceHintsLine.geom"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
-	);
-	m_fenceHintsLineProgram->link();
-
+	//#### helper shader
+	initializeShader_geom(*m_fenceHintsCubeProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsCube.geom", bp + "basic.frag");
+	initializeShader_geom(*m_fenceHintsLineProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsLine.geom", bp + "basic.frag");
 	//TODO: fenceGradient.geom und extrudeLines.geom unterscheiden sich nur in der Höhe
-	m_fenceGradientProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/basicWithoutTransform.vert"),
-		globjects::Shader::fromFile(gl::GL_GEOMETRY_SHADER, "data/fenceGradient.geom"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/fenceGradient.frag")
-	);
-	m_fenceGradientProgram->link();
+	initializeShader_geom(*m_fenceGradientProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceGradient.geom", bp + "helperShader/fenceGradient.frag");
+	initializeShader(*m_dilationFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/dilation.frag");
 
-	m_footprintProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/footprint.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/basic.frag")
-	);
-	m_footprintProgram->link();
-
+	/* TODO - remove
 	m_perspectiveDepthMaskProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/depthMask.frag")
 	);
 	m_perspectiveDepthMaskProgram->link();
+	*/
 
-	m_edgeDetectionProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/edgeDetection.frag")
-	);
-	m_edgeDetectionProgram->link();
-
-	m_dilationFilterProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/dilation.frag")
-	);
-	m_dilationFilterProgram->link();
-
-	m_mixEnhancedEdgesProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixEnhancedEdge.frag")
-	);
-	m_mixEnhancedEdgesProgram->link();
-
-	m_mixByMaskProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixByMask.frag")
-	);
-	m_mixByMaskProgram->link();
-
-	m_depthMaskProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/.frag")
-	);
-	m_depthMaskProgram->link();
-
-	m_layerMaskProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/.frag")
-	);
-	m_layerMaskProgram->link();
+	//#### additional effekt shader
+	initializeShader(*m_edgeDetectionProgram, bp + "screenAlignedQuad.vert", bp + "additionalEffektShader/edgeDetection.frag");
+	initializeShader(*m_mixEnhancedEdgesProgram, bp + "screenAlignedQuad.vert", bp + "additionalEffektShader/mixEnhancedEdge.frag");
 }
 
 void Painter::loadGeometry()
@@ -1040,7 +949,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	//TODO- updates einführen
-	drawToSAQ(m_perspectiveDepthMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
+	//drawToSAQ(m_perspectiveDepthMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -1188,6 +1097,7 @@ void Painter::mix_onDepth(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//render Mask
+	//drawToSAQ(m_depthMaskProgram, nullptr);
 
 	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT3);
@@ -1600,7 +1510,7 @@ void Painter::bindStaticTextures()
 	bindStaticTextures(*m_fenceHintsCubeProgram);
 	bindStaticTextures(*m_fenceHintsLineProgram);
 	bindStaticTextures(*m_fenceGradientProgram);
-	bindStaticTextures(*m_perspectiveDepthMaskProgram);
+	//bindStaticTextures(*m_perspectiveDepthMaskProgram);
 	bindStaticTextures(*m_edgeDetectionProgram);
 	bindStaticTextures(*m_dilationFilterProgram);
 	bindStaticTextures(*m_mixEnhancedEdgesProgram);
