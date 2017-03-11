@@ -147,10 +147,10 @@ protected:
 
 
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
-	globjects::ref_ptr<globjects::VertexArray> m_vaoLine;
-	globjects::ref_ptr<globjects::VertexArray> m_vaoLine2;
-	globjects::ref_ptr<globjects::VertexArray> m_vaoPath;
-	globjects::ref_ptr<globjects::VertexArray> m_vaoPath2;
+	globjects::ref_ptr<globjects::VertexArray> m_vaoLine_realGeometry;
+	globjects::ref_ptr<globjects::VertexArray> m_vaoLine2_realGeometry;
+	globjects::ref_ptr<globjects::VertexArray> m_vaoPlanePath;
+	globjects::ref_ptr<globjects::VertexArray> m_vaoPlanePath2;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoSAQ;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoPlane;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoStreets;
@@ -158,8 +158,8 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboCityIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboLineIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboLine2Indices;
-	globjects::ref_ptr<globjects::Buffer> m_vboPathIndices;
-	globjects::ref_ptr<globjects::Buffer> m_vboPath2Indices;
+	globjects::ref_ptr<globjects::Buffer> m_vboPlanePathIndices;
+	globjects::ref_ptr<globjects::Buffer> m_vboPlanePath2Indices;
 	globjects::ref_ptr<globjects::Buffer> m_vboSAQIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboStreetsIndices;
@@ -191,25 +191,31 @@ protected:
 
 	std::vector<glm::vec3> m_cityVertices;
 	std::vector<glm::vec3> m_lineVertices_OLD;
-	std::vector<glm::vec3> m_line2Vertices;
-	std::vector<glm::vec3> m_pathVertices;
-	std::vector<glm::vec3> m_path2Vertices;
+	std::vector<glm::vec3> m_line2Vertices_OLD;
+	std::vector<glm::vec3> m_planePathVertices;
+	std::vector<glm::vec3> m_planePath2Vertices;
 	std::vector<glm::vec3> m_planeVertices;
 	std::vector<glm::vec3> m_streetsVertices;
 	std::vector<glm::vec3> m_screenAlignedQuad;
 
-	//line vertices
+	//line representation vertices of first path
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLineVertices;
 	std::vector<glm::vec3> m_lineVertices;
 	globjects::ref_ptr<globjects::Buffer> m_vboLineVertices;
 	std::vector<unsigned int> m_lineIndices;
 
+	//line representation vertices of second path
+	globjects::ref_ptr<globjects::VertexArray> m_vaoLineVertices2;
+	std::vector<glm::vec3> m_lineVertices2;
+	globjects::ref_ptr<globjects::Buffer> m_vboLineVertices2;
+	std::vector<unsigned int> m_lineIndices2;
+
 	std::vector<unsigned int> m_cityIndices;
 	std::vector<unsigned int> m_lineIndices_OLD;
-	std::vector<unsigned int> m_line2Indices;
+	std::vector<unsigned int> m_line2Indices_OLD;
 	std::vector<unsigned int> m_linesIndices;
-	std::vector<unsigned int> m_pathIndices;
-	std::vector<unsigned int> m_path2Indices;
+	std::vector<unsigned int> m_planePathIndices;
+	std::vector<unsigned int> m_planePath2Indices;
 	std::vector<unsigned int> m_SAQIndices;
 	std::vector<unsigned int> m_planeIndices;
 	std::vector<unsigned int> m_streetsIndices;

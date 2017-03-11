@@ -16,21 +16,36 @@ MeshLoader::MeshLoader()
 {
 }
 
-void MeshLoader::getLineVertices(std::vector<glm::vec3> & verticesContainer, std::vector<unsigned int> & lineIndicesContainer)
+void MeshLoader::getLineVertices(std::vector<glm::vec3> & verticesContainer, std::vector<unsigned int> & lineIndicesContainer, bool firstLine)
 {
-	verticesContainer.emplace_back(-16.8429f, -0.7704f, -33.3231f);
-	verticesContainer.emplace_back(-16.8429f, -0.7704f, -15.7980f);
-	verticesContainer.emplace_back(-5.5530f, -0.7704f, -15.7980f);
-	verticesContainer.emplace_back(-5.4952f, -0.7704f, -0.4148f);
-	verticesContainer.emplace_back(-11.6776f, -0.7704f, -0.3741f);
-	verticesContainer.emplace_back(-11.6384f, -0.7704f, 9.2194f);
-	verticesContainer.emplace_back(8.1854f, -0.7704f, 9.1957f);
-	verticesContainer.emplace_back(8.2115f, -0.7704f, 15.0166f);
-	verticesContainer.emplace_back(26.8190f, -0.7704f, 14.9882f);
-	verticesContainer.emplace_back(26.8091f, -0.7704f, -0.3075f);
-	verticesContainer.emplace_back(23.3483f, -0.7704f, -0.3034f);
-	verticesContainer.emplace_back(23.3394f, -0.7704f, -9.2318f);
-	verticesContainer.emplace_back(30.7871f, -0.7704f, -9.2393f);
+	float blottomLevelHeight = -0.77f;
+
+	//hard coded path
+	if (firstLine)
+	{
+		verticesContainer.emplace_back(-16.8429f, blottomLevelHeight, -33.3231f);
+		verticesContainer.emplace_back(-16.8429f, blottomLevelHeight, -15.7980f);
+		verticesContainer.emplace_back(-5.5530f, blottomLevelHeight, -15.7980f);
+		verticesContainer.emplace_back(-5.4952f, blottomLevelHeight, -0.4148f);
+		verticesContainer.emplace_back(-11.6776f, blottomLevelHeight, -0.3741f);
+		verticesContainer.emplace_back(-11.6384f, blottomLevelHeight, 9.2194f);
+		verticesContainer.emplace_back(8.1854f, blottomLevelHeight, 9.1957f);
+		verticesContainer.emplace_back(8.2115f, blottomLevelHeight, 15.0166f);
+		verticesContainer.emplace_back(26.8190f, blottomLevelHeight, 14.9882f);
+		verticesContainer.emplace_back(26.8091f, blottomLevelHeight, -0.3075f);
+		verticesContainer.emplace_back(23.3483f, blottomLevelHeight, -0.3034f);
+		verticesContainer.emplace_back(23.3394f, blottomLevelHeight, -9.2318f);
+		verticesContainer.emplace_back(30.7871f, blottomLevelHeight, -9.2393f);
+	}
+	else
+	{
+		verticesContainer.emplace_back(-29.108f, blottomLevelHeight, -3.305f);
+		verticesContainer.emplace_back(-17.436f, blottomLevelHeight, -3.305f);
+		verticesContainer.emplace_back(-17.436f, blottomLevelHeight, 3.16f);
+		verticesContainer.emplace_back(-17.042f, blottomLevelHeight, 3.16f);
+		verticesContainer.emplace_back(-17.042f, blottomLevelHeight, 26.745f);
+		verticesContainer.emplace_back(35.000f, blottomLevelHeight, 26.745f);
+	}
 
 	for (unsigned int i = 0; i < verticesContainer.size(); i++)
 	{

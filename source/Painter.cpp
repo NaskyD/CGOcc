@@ -76,18 +76,18 @@ void Painter::initialize()
 	m_mixEnhancedEdgesProgram = new globjects::Program();
 	m_mixByMaskProgram = new globjects::Program();
 	m_vaoCity = new globjects::VertexArray();
-	m_vaoLine = new globjects::VertexArray();
-	m_vaoLine2 = new globjects::VertexArray();
-	m_vaoPath = new globjects::VertexArray();
-	m_vaoPath2 = new globjects::VertexArray();
+	m_vaoLine_realGeometry = new globjects::VertexArray();
+	m_vaoLine2_realGeometry = new globjects::VertexArray();
+	m_vaoPlanePath = new globjects::VertexArray();
+	m_vaoPlanePath2 = new globjects::VertexArray();
 	m_vaoSAQ = new globjects::VertexArray();
 	m_vaoPlane = new globjects::VertexArray();
 	m_vaoStreets = new globjects::VertexArray();
 	m_vboCityIndices = new globjects::Buffer();
 	m_vboLineIndices = new globjects::Buffer();
 	m_vboLine2Indices = new globjects::Buffer();
-	m_vboPathIndices = new globjects::Buffer();
-	m_vboPath2Indices = new globjects::Buffer();
+	m_vboPlanePathIndices = new globjects::Buffer();
+	m_vboPlanePath2Indices = new globjects::Buffer();
 	m_vboSAQIndices = new globjects::Buffer();
 	m_vboPlaneIndices = new globjects::Buffer();
 	m_vboStreetsIndices = new globjects::Buffer();
@@ -101,9 +101,11 @@ void Painter::initialize()
 	m_fboPerspectiveDepthMask = new globjects::Framebuffer();
 	m_fboEdgeEnhancement = new globjects::Framebuffer();
 
-	//line vertices
+	//line representation
 	m_vaoLineVertices = new globjects::VertexArray();
 	m_vboLineVertices = new globjects::Buffer();
+	m_vaoLineVertices2 = new globjects::VertexArray();
+	m_vboLineVertices2 = new globjects::Buffer();
 
 	//define screen aligned quad
 	m_screenAlignedQuad.push_back(glm::vec3(-1.0f, -1.0f, 0.0f));
@@ -118,14 +120,16 @@ void Painter::initialize()
 	loadGeometryToGPU(m_vaoCity, m_vboCityIndices, m_cityVertices, m_cityIndices, true);
 	loadGeometryToGPU(m_vaoPlane, m_vboPlaneIndices, m_planeVertices, m_planeIndices, false);
 	loadGeometryToGPU(m_vaoStreets, m_vboStreetsIndices, m_streetsVertices, m_streetsIndices, false);
-	loadGeometryToGPU(m_vaoLine, m_vboLineIndices, m_lineVertices_OLD, m_lineIndices_OLD, false);
-	loadGeometryToGPU(m_vaoPath, m_vboPathIndices, m_pathVertices, m_pathIndices, false);
+	loadGeometryToGPU(m_vaoLine_realGeometry, m_vboLineIndices, m_lineVertices_OLD, m_lineIndices_OLD, false);
+	loadGeometryToGPU(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathVertices, m_planePathIndices, false);
 	loadGeometryToGPU(m_vaoLineVertices, m_vboLineVertices, m_lineVertices, m_lineIndices, false);
 
 	if (c_twoLines)
 	{
-		loadGeometryToGPU(m_vaoLine2, m_vboLine2Indices, m_line2Vertices, m_line2Indices, false);
-		loadGeometryToGPU(m_vaoPath2, m_vboPath2Indices, m_path2Vertices, m_path2Indices, false);
+		loadGeometryToGPU(m_vaoLine2_realGeometry, m_vboLine2Indices, m_line2Vertices_OLD, m_line2Indices_OLD, false);
+		loadGeometryToGPU(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Vertices, m_planePath2Indices, false);
+
+		loadGeometryToGPU(m_vaoLineVertices2, m_vboLineVertices2, m_lineVertices2, m_lineIndices2, false);
 	}
 
 	//set up ressources
@@ -299,11 +303,12 @@ void Painter::setUpShader()
 void Painter::loadGeometry()
 {
 	m_meshLoader.loadFileData();
-	bool verticesValid = m_meshLoader.getVertices(m_cityVertices, m_lineVertices_OLD, m_line2Vertices, m_pathVertices, m_path2Vertices, m_planeVertices, m_streetsVertices);
-	bool indicesValid = m_meshLoader.getIndices(m_cityIndices, m_lineIndices_OLD, m_line2Indices, m_pathIndices, m_path2Indices, m_planeIndices, m_streetsIndices);
+	bool verticesValid = m_meshLoader.getVertices(m_cityVertices, m_lineVertices_OLD, m_line2Vertices_OLD, m_planePathVertices, m_planePath2Vertices, m_planeVertices, m_streetsVertices);
+	bool indicesValid = m_meshLoader.getIndices(m_cityIndices, m_lineIndices_OLD, m_line2Indices_OLD, m_planePathIndices, m_planePath2Indices, m_planeIndices, m_streetsIndices);
 	bool normalsValid = m_meshLoader.getNormals(m_normals);
 
-	m_meshLoader.getLineVertices(m_lineVertices, m_lineIndices);
+	m_meshLoader.getLineVertices(m_lineVertices, m_lineIndices, true);
+	m_meshLoader.getLineVertices(m_lineVertices2, m_lineIndices2, false);
 
 	if (verticesValid == false)
 		std::printf("No geometry accessable");
@@ -540,8 +545,8 @@ void Painter::drawStandardCity(bool inputChanged)
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
@@ -561,8 +566,11 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 {
 	setGlState();
 
-	//########## Render city+plane+streets image to FBO ##############
-	drawStandardCity(inputChanged);
+	if (!forComposing)
+	{
+		//########## Render city+plane+streets image to FBO ##############
+		drawStandardCity(inputChanged);
+	}
 
 	//########## clear A-Buffer and IndexImage #############
 	update(m_clearABufferProgram, false, false, true, inputChanged, true);
@@ -571,8 +579,6 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 	
 	//########## Render extruded line to ABuffer ##############
 	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
-	//TODO second LINE
-	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
 	drawToABufferOnly(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -593,8 +599,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render extruded line2 to ABuffer ##############
-		update(m_toABufferOnlyProgram, false, true, true, inputChanged, true);
-		drawToABufferOnly(m_vaoLine2, m_vboLine2Indices, m_line2Indices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
+		drawToABufferOnly(m_vaoLineVertices2, m_vboLineVertices2, m_lineIndices2, m_extrudedLinetoABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render halo from line2 image to FBO ##############
@@ -606,17 +611,34 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
-	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
-	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
-	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
-	//########## Render to the Screen ##############
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_outlineHintsProgram, false, false, true, inputChanged);
-	drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+	if (forComposing)
+	{
+		//########## Render to resultTexture ##############
+		m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+		m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+		m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, resultTexture);
+		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 
-	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+		glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update(m_outlineHintsProgram, false, false, true, inputChanged);
+		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+	}
+	else
+	{
+		//########## Render to the Screen ##############
+		m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		update(m_outlineHintsProgram, false, false, true, inputChanged);
+		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 
-	mixWithEnhancedEdges(*(m_outlineHintsTextures.at(2)), inputChanged);
+		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+		//########## Add edge enhancement ##############
+		mixWithEnhancedEdges(*(m_outlineHintsTextures.at(2)), inputChanged);
+	}
 
 	unsetGlState();
 }
@@ -641,8 +663,8 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 	update(m_toABufferTypedProgram, false, false, false, inputChanged);
 	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
 	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
+	drawToABufferOnly(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 
 	//drawToSAQ(m_sortABufferProgram, nullptr);
 
@@ -674,8 +696,8 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	update(m_toABufferTypedProgram, false, false, false, inputChanged);
 	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
 	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
+	drawToABufferOnly(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
@@ -685,8 +707,8 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
@@ -701,8 +723,8 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
@@ -735,22 +757,22 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forComposing,
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	//########## render city(without houses) to Texture ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	//########## render mask texture ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT3);
@@ -794,8 +816,8 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forComposing, 
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
@@ -829,8 +851,8 @@ void Painter::drawFullFlatVisualization(bool inputChanged)
 	update(m_generalProgram, false, false, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	unsetGlState();
 }
@@ -843,8 +865,8 @@ void Painter::drawFullFootprintVisualization(bool inputChanged)
 	update(m_generalProgram, false, false, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	update(m_footprintProgram, true, false, true, inputChanged);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_footprintProgram, true, true);
@@ -877,8 +899,8 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	update(m_generalProgram, false, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 
 	update(m_generalProgram, true, true, true, inputChanged);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
@@ -908,7 +930,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 
 		//########## Render extruded line2 to ABuffer ##############
 		update(m_toABufferOnlyProgram, false, true, true, inputChanged, true);
-		drawToABufferOnly(m_vaoLine2, m_vboLine2Indices, m_line2Indices, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
+		drawToABufferOnly(m_vaoLine2_realGeometry, m_vboLine2Indices, m_line2Indices_OLD, m_toABufferOnlyProgram, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f));
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render halo from line2 image to FBO ##############
@@ -947,16 +969,16 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	update(m_toABufferTypedProgram, false, false, false, inputChanged);
 	drawToABufferOnly(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_toABufferTypedProgram, false, true, c_planeColor, 1u);
 	drawToABufferOnly(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_toABufferTypedProgram, false, true, c_streetsColor, 2u);
-	drawToABufferOnly(m_vaoPath, m_vboPathIndices, m_pathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
-	drawToABufferOnly(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
+	drawToABufferOnly(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_toABufferTypedProgram, false, true, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_toABufferTypedProgram, false, true, c_line2Color, 3u);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render transparancy mask texture ############
 	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 	
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
@@ -969,8 +991,8 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoPlane, m_vboPlaneIndices, m_planeIndices, m_generalProgram, false, true, c_planeColor);
 	drawGeneralGeometry(m_vaoStreets, m_vboStreetsIndices, m_streetsIndices, m_generalProgram, false, true, c_streetsColor);
-	drawGeneralGeometry(m_vaoPath, m_vboPathIndices, m_pathIndices, m_generalProgram, false, true, c_lineColor);
-	drawGeneralGeometry(m_vaoPath2, m_vboPath2Indices, m_path2Indices, m_generalProgram, false, true, c_line2Color);
+	drawGeneralGeometry(m_vaoPlanePath, m_vboPlanePathIndices, m_planePathIndices, m_generalProgram, false, true, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_vboPlanePath2Indices, m_planePath2Indices, m_generalProgram, false, true, c_line2Color);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	
 	//########## Render to mixture_FBO texture ##############
