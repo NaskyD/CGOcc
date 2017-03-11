@@ -81,6 +81,8 @@ protected:
 
 	//mixtures of techniques
 	void mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged);
+	void mix_onDepth(bool inputChanged);
+	void mix_onLayer(bool inputChanged);
 	
 	void drawToABufferOnly(globjects::VertexArray * vao, std::vector<unsigned int> & indices, globjects::Program * program, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0u, gl::GLenum drawMode = gl::GL_TRIANGLES);
 	void drawGeneralGeometry(globjects::VertexArray * vao, std::vector<unsigned int> & indices, globjects::Program * program, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
@@ -112,7 +114,8 @@ protected:
 protected:
 	MeshLoader m_meshLoader;
 
-	//#### visualization techniques ####
+	//########################################################## Programs ##########################################################
+	//#### visualization techniques
 	globjects::ref_ptr<globjects::Program> m_generalProgram;
 	globjects::ref_ptr<globjects::Program> m_outlineHintsProgram;
 	globjects::ref_ptr<globjects::Program> m_transparentCityProgram;
@@ -121,7 +124,7 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_fenceHintsProgram;
 	globjects::ref_ptr<globjects::Program> m_footprintProgram;
 
-	//#### helper programs for single visualizations ####
+	//#### helper programs for single visualizations
 	globjects::ref_ptr<globjects::Program> m_haloLineABufferedProgram;
 	globjects::ref_ptr<globjects::Program> m_toABufferOnlyProgram;
 	globjects::ref_ptr<globjects::Program> m_extrudedLinetoABufferOnlyProgram;
@@ -134,18 +137,61 @@ protected:
 	globjects::ref_ptr<globjects::Program> m_fenceHintsLineProgram;
 	globjects::ref_ptr<globjects::Program> m_fenceGradientProgram;
 
-	//#### mix of visualizations ####
+	//#### composition visualization programs
 	globjects::ref_ptr<globjects::Program> m_mixByMaskProgram;
+	globjects::ref_ptr<globjects::Program> m_depthMaskProgram;
+	globjects::ref_ptr<globjects::Program> m_layerMaskProgram;
 
-	//#### helper programs for combining visualizations ####
+	//#### helper programs for combining visualizations
 	globjects::ref_ptr<globjects::Program> m_perspectiveDepthMaskProgram;
 
-	//#### programs for additional effects ####
+	//#### programs for additional effects
 	globjects::ref_ptr<globjects::Program> m_edgeDetectionProgram;
 	globjects::ref_ptr<globjects::Program> m_dilationFilterProgram;
 	globjects::ref_ptr<globjects::Program> m_mixEnhancedEdgesProgram;
 
+	//########################################################## FBO ##########################################################
+	//#### visualization fbos
+	globjects::ref_ptr<globjects::Framebuffer> m_fboNormalVisualization;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboOutlineHints;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboStaticTransparancy;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboAdaptiveTranspancyPerPixel;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboGhostedView;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboFenceHints;
 
+	//#### composition visualization fbos
+	//TODO - delete perspectiveDepthMask fbo, textures, ...
+	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
+	globjects::ref_ptr<globjects::Framebuffer> m_fbo_mix_onDepth;
+	globjects::ref_ptr<globjects::Framebuffer> m_fbo_mix_onLayer;
+
+	//#### additional fbos
+	globjects::ref_ptr<globjects::Framebuffer> m_fboStandardCity;
+	globjects::ref_ptr<globjects::Framebuffer> m_fboEdgeEnhancement;
+
+	//########################################################## Textures ##########################################################
+	//#### visualization textures
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_normalVisualizationTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_staticTransparancyTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_adaptiveTransparancyPerPixelTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_ghostedViewTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
+
+	//#### composition visualization textures
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_onDepthTextures;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_onLayerTextures;
+
+	//#### additional textures
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_standardCityTexture;
+	std::vector<globjects::ref_ptr<globjects::Texture>> m_enhancedEdgeTexture;
+	gl::GLuint m_aBufferTextureArrayID;
+	gl::GLuint m_aBufferIndexTexture;
+	gl::GLuint m_transparentTypedTexture;
+	gl::GLuint m_cubeMap;
+
+	//########################################################## Data ##########################################################
 	globjects::ref_ptr<globjects::VertexArray> m_vaoCity;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine_realGeometry;
 	globjects::ref_ptr<globjects::VertexArray> m_vaoLine2_realGeometry;
@@ -163,31 +209,6 @@ protected:
 	globjects::ref_ptr<globjects::Buffer> m_vboSAQIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboPlaneIndices;
 	globjects::ref_ptr<globjects::Buffer> m_vboStreetsIndices;
-
-	globjects::ref_ptr<globjects::Framebuffer> m_fboStandardCity;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboNormalVisualization;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboOutlineHints;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboStaticTransparancy;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboAdaptiveTranspancyPerPixel;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboGhostedView;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboFenceHints;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
-	globjects::ref_ptr<globjects::Framebuffer> m_fboEdgeEnhancement;
-
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_standardCityTexture;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_normalVisualizationTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_outlineHintsTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_staticTransparancyTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_adaptiveTransparancyPerPixelTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_ghostedViewTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_enhancedEdgeTexture;
-	gl::GLuint m_aBufferTextureArrayID;
-	gl::GLuint m_aBufferIndexTexture;
-	gl::GLuint m_transparentTypedTexture;
-	gl::GLuint m_cubeMap;
-
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
 
 	std::vector<glm::vec3> m_cityVertices;
 	std::vector<glm::vec3> m_lineVertices_OLD;
@@ -219,8 +240,9 @@ protected:
 	std::vector<unsigned int> m_SAQIndices;
 	std::vector<unsigned int> m_planeIndices;
 	std::vector<unsigned int> m_streetsIndices;
-	std::vector<glm::vec3> m_normals;
+	std::vector<glm::vec3> m_cityNormals;
 
+	//########################################################## Miscellaneous ##########################################################
 	glm::mat4x4 m_projection;
 	glm::mat4x4 m_view;
 	glm::mat4x4 m_model;

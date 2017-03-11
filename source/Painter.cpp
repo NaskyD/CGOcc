@@ -75,6 +75,9 @@ void Painter::initialize()
 	m_dilationFilterProgram = new globjects::Program();
 	m_mixEnhancedEdgesProgram = new globjects::Program();
 	m_mixByMaskProgram = new globjects::Program();
+	m_depthMaskProgram = new globjects::Program();
+	m_layerMaskProgram = new globjects::Program();
+
 	m_vaoCity = new globjects::VertexArray();
 	m_vaoLine_realGeometry = new globjects::VertexArray();
 	m_vaoLine2_realGeometry = new globjects::VertexArray();
@@ -83,6 +86,7 @@ void Painter::initialize()
 	m_vaoSAQ = new globjects::VertexArray();
 	m_vaoPlane = new globjects::VertexArray();
 	m_vaoStreets = new globjects::VertexArray();
+
 	m_vboCityIndices = new globjects::Buffer();
 	m_vboLineIndices = new globjects::Buffer();
 	m_vboLine2Indices = new globjects::Buffer();
@@ -91,6 +95,7 @@ void Painter::initialize()
 	m_vboSAQIndices = new globjects::Buffer();
 	m_vboPlaneIndices = new globjects::Buffer();
 	m_vboStreetsIndices = new globjects::Buffer();
+
 	m_fboStandardCity = new globjects::Framebuffer();
 	m_fboNormalVisualization = new globjects::Framebuffer();
 	m_fboOutlineHints = new globjects::Framebuffer();
@@ -100,6 +105,8 @@ void Painter::initialize()
 	m_fboFenceHints = new globjects::Framebuffer();
 	m_fboPerspectiveDepthMask = new globjects::Framebuffer();
 	m_fboEdgeEnhancement = new globjects::Framebuffer();
+	m_fbo_mix_onDepth = new globjects::Framebuffer();
+	m_fbo_mix_onLayer = new globjects::Framebuffer();
 
 	//line representation
 	m_vaoLineVertices = new globjects::VertexArray();
@@ -186,7 +193,7 @@ void Painter::setUpShader()
 	);
 	m_clearABufferProgram->link();
 
-	//Not used?
+	//TODO - Not used?
 	m_sortABufferProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/sortABuffer.frag")
@@ -269,12 +276,6 @@ void Painter::setUpShader()
 	);
 	m_footprintProgram->link();
 
-	m_mixByMaskProgram->attach(
-		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
-		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixByMask.frag")
-	);
-	m_mixByMaskProgram->link();
-
 	m_perspectiveDepthMaskProgram->attach(
 		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/depthMask.frag")
@@ -298,6 +299,24 @@ void Painter::setUpShader()
 		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixEnhancedEdge.frag")
 	);
 	m_mixEnhancedEdgesProgram->link();
+
+	m_mixByMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/mixByMask.frag")
+	);
+	m_mixByMaskProgram->link();
+
+	m_depthMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/.frag")
+	);
+	m_depthMaskProgram->link();
+
+	m_layerMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/.frag")
+	);
+	m_layerMaskProgram->link();
 }
 
 void Painter::loadGeometry()
@@ -305,7 +324,7 @@ void Painter::loadGeometry()
 	m_meshLoader.loadFileData();
 	bool verticesValid = m_meshLoader.getVertices(m_cityVertices, m_lineVertices_OLD, m_line2Vertices_OLD, m_planePathVertices, m_planePath2Vertices, m_planeVertices, m_streetsVertices);
 	bool indicesValid = m_meshLoader.getIndices(m_cityIndices, m_lineIndices_OLD, m_line2Indices_OLD, m_planePathIndices, m_planePath2Indices, m_planeIndices, m_streetsIndices);
-	bool normalsValid = m_meshLoader.getNormals(m_normals);
+	bool normalsValid = m_meshLoader.getNormals(m_cityNormals);
 
 	m_meshLoader.getLineVertices(m_lineVertices, m_lineIndices, true);
 	m_meshLoader.getLineVertices(m_lineVertices2, m_lineIndices2, false);
@@ -344,7 +363,7 @@ void Painter::loadGeometryToGPU(globjects::ref_ptr<globjects::VertexArray> & vao
 	if (useNormals)
 	{
 		vbo_normals->bind(GL_ARRAY_BUFFER);
-		vbo_normals->setData(m_normals, GL_STATIC_DRAW);
+		vbo_normals->setData(m_cityNormals, GL_STATIC_DRAW);
 		vao->binding(1)->setAttribute(1);
 		vao->binding(1)->setBuffer(vbo_normals, 0, sizeof(glm::vec3));
 		vao->binding(1)->setFormat(3, GL_FLOAT, GL_FALSE, 0);
@@ -476,10 +495,11 @@ void Painter::draw(short renderMode)
 		drawFullFootprintVisualization(m_inputChanged);
 		break;
 	case 10:
-		mix_outlineHints_adaptiveTransparancy_onDepth(m_inputChanged);
+		//mix_outlineHints_adaptiveTransparancy_onDepth(m_inputChanged);
+		mix_onDepth(m_inputChanged);
 		break;
 	case 11:
-		;
+		mix_onLayer(m_inputChanged);
 		break;
 	case 12:
 		;
@@ -1155,6 +1175,60 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	unsetGlState();
 }
 
+void Painter::mix_onDepth(bool inputChanged)
+{
+	setGlState();
+
+	drawStandardCity(inputChanged);
+	drawOutlineHintsVisualization(inputChanged, true, m_mix_onDepthTextures.at(0));
+	drawAdaptiveTransparancyPerPixelVisualization(inputChanged, true, m_mix_onDepthTextures.at(1));
+
+	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
+	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//render Mask
+
+	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
+	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	drawToSAQ(m_mixByMaskProgram, &m_mix_onDepthTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_mix_onDepthTextures.at(3)), inputChanged);
+	unsetGlState();
+}
+
+void Painter::mix_onLayer(bool inputChanged)
+{
+	setGlState();
+
+	drawStandardCity(inputChanged);
+	drawOutlineHintsVisualization(inputChanged, true, m_mix_onLayerTextures.at(0));
+	drawAdaptiveTransparancyPerPixelVisualization(inputChanged, true, m_mix_onLayerTextures.at(1));
+
+	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
+	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//render Mask
+
+	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
+	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT3);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	drawToSAQ(m_mixByMaskProgram, &m_mix_onLayerTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	mixWithEnhancedEdges(*(m_mix_onLayerTextures.at(3)), inputChanged);
+	unsetGlState();
+}
+
+
+
 void Painter::drawToABufferOnly(globjects::VertexArray * vao, std::vector<unsigned int> & indices, globjects::Program * program, glm::vec4 specifiedColor, unsigned int typeId, GLenum drawMode)
 {
 	if (!vao || !program)
@@ -1368,8 +1442,11 @@ void Painter::setUpFBOs()
 	setFBO(m_fboStaticTransparancy, &m_staticTransparancyTextures, 1);
 	setFBO(m_fboAdaptiveTranspancyPerPixel, &m_adaptiveTransparancyPerPixelTextures, 3);
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
-	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 3);
+	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 4);
+
 	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
+	setFBO(m_fbo_mix_onDepth, &m_mix_onDepthTextures, 4);
+	setFBO(m_fbo_mix_onLayer, &m_mix_onLayerTextures, 4);
 }
 
 void Painter::setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures)
@@ -1523,9 +1600,11 @@ void Painter::bindStaticTextures()
 	bindStaticTextures(*m_fenceHintsCubeProgram);
 	bindStaticTextures(*m_fenceHintsLineProgram);
 	bindStaticTextures(*m_fenceGradientProgram);
-	bindStaticTextures(*m_mixByMaskProgram);
 	bindStaticTextures(*m_perspectiveDepthMaskProgram);
 	bindStaticTextures(*m_edgeDetectionProgram);
 	bindStaticTextures(*m_dilationFilterProgram);
 	bindStaticTextures(*m_mixEnhancedEdgesProgram);
+	bindStaticTextures(*m_mixByMaskProgram);
+	bindStaticTextures(*m_depthMaskProgram);
+	bindStaticTextures(*m_layerMaskProgram);
 }
