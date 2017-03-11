@@ -45,7 +45,7 @@ void Painter::resizeWindow(int width, int height)
 	setUpMatrices();
 	setUpFBOs();
 	setUpABuffer();
-
+	bindStaticTextures();
 }
 
 void Painter::initialize()
