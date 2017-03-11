@@ -562,11 +562,11 @@ void Painter::drawNormalScene(bool inputChanged)
 	unsetGlState();
 }
 
-void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
-	if (!forComposing)
+	if (!forCompositing)
 	{
 		//########## Render city+plane+streets image to FBO ##############
 		drawStandardCity(inputChanged);
@@ -611,12 +611,17 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
-	if (forComposing)
+	if (forCompositing)
 	{
 		//########## Render to resultTexture ##############
 		m_fboOutlineHints->bind(GL_FRAMEBUFFER);
-		m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
-		m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, resultTexture);
+
+		if (inputChanged)
+		{
+			m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, 0);
+			m_fboOutlineHints->attachTexture(GL_COLOR_ATTACHMENT2, resultTexture);
+		}
+
 		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 
 		glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
@@ -643,7 +648,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forComposing
 	unsetGlState();
 }
 
-void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -680,7 +685,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 	unsetGlState();
 }
 
-void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -742,7 +747,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	unsetGlState();
 }
 
-void Painter::drawGhostedViewVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
 
@@ -793,21 +798,28 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forComposing,
 	unsetGlState();
 }
 
-void Painter::drawFenceHintsVisualization(bool inputChanged, bool forComposing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
+void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing, globjects::Texture * standardCityTexture, globjects::Texture * resultTexture)
 {
 	setGlState();
-	//TODO: Viel. alles zusammen in einem Durchlauf möglich -> keine extra Texturen??
+
 	//########## render fence top components to texture ##############
 	m_fboFenceHints->bind(GL_FRAMEBUFFER);
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
 	update(m_fenceHintsCubeProgram, false, true, true, inputChanged);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, true, c_lineColor, GL_POINTS);
+	if (c_twoLines)
+	{
+		drawWithLineRepresentation(m_vaoLineVertices2, m_vboLineVertices2, m_lineIndices2, m_fenceHintsCubeProgram, nullptr, true, c_line2Color, GL_POINTS);
+	}
+
 	update(m_fenceHintsLineProgram, false, true, true, inputChanged);
-	//glLineWidth(3.0f);
 	drawWithLineRepresentation(m_vaoLineVertices, m_vboLineVertices, m_lineIndices, m_fenceHintsLineProgram, nullptr, true, c_lineColor, GL_LINE_STRIP);
-	//glLineWidth(1.0f);
-	//TODO: missing second line
+	if (c_twoLines)
+	{
+		drawWithLineRepresentation(m_vaoLineVertices2, m_vboLineVertices2, m_lineIndices2, m_fenceHintsLineProgram, nullptr, true, c_line2Color, GL_LINE_STRIP);
+	}
 
 	//########## render city to texture ##############
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
@@ -822,12 +834,16 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forComposing, 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_vboCityIndices, m_cityIndices, m_generalProgram, true, true);
 
-	//TODO verallgemeinern
+	//########## render fence gradient to texture ##############
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	update(m_fenceGradientProgram, false, true, true, inputChanged);
-	drawFenceGradient(true, c_lineColor);
-	//drawFenceGradient(c_line2Color);
+	drawFenceGradient(m_vaoLineVertices, m_lineIndices, true, c_lineColor);
+
+	if (c_twoLines)
+	{
+		drawFenceGradient(m_vaoLineVertices2, m_lineIndices2, true, c_line2Color);
+	}
 	glDisable(GL_BLEND);
 	
 	//########## render to screen ##############
@@ -1018,6 +1034,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	unsetGlState();
 }
 
+//TODO!!!!!! - remove unneccessary parameters: vbo, ...
 void Painter::drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor, unsigned int typeId, GLenum drawMode)
 {
 	if (!vao || !vbo || !program)
@@ -1059,6 +1076,9 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffe
 
 void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
 {
+	if (!program)
+		return;
+
 	//TODO - other setup possible?
 	setUniformOn(program, "haloColor", m_currentHaloColor);
 
@@ -1088,17 +1108,19 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 }
 
 //TODO Maybe remove later
-void Painter::drawFenceGradient(bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
+void Painter::drawFenceGradient(globjects::VertexArray * vao, std::vector<unsigned int> & indices, bool renderDepthValueForTextureUsage, glm::vec4 specifiedColor)
 {
+	if (!vao)
+		return;
+
 	setUniformOn(m_fenceGradientProgram, "specifiedColor", specifiedColor);
 
 	m_fenceGradientProgram->use();
-	m_vaoLineVertices->bind();
-	m_vboLineVertices->bind(GL_ELEMENT_ARRAY_BUFFER);
+	vao->bind();
 
-	m_vaoLineVertices->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(m_lineIndices.size()), GL_UNSIGNED_INT);
+	vao->drawElements(GL_LINE_STRIP, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT);
 
-	m_vaoLineVertices->unbind();
+	vao->unbind();
 	m_fenceGradientProgram->release();
 }
 

@@ -71,11 +71,11 @@ protected:
 
 	//techniques
 	void drawNormalScene(bool inputChanged);
-	void drawOutlineHintsVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawStaticTransparancyVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawGhostedViewVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
-	void drawFenceHintsVisualization(bool inputChanged, bool forComposing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawOutlineHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawStaticTransparancyVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawGhostedViewVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
+	void drawFenceHintsVisualization(bool inputChanged, bool forCompositing = false, globjects::Texture * standardCityTexture = nullptr, globjects::Texture * resultTexture = nullptr);
 	void drawFullFlatVisualization(bool inputChanged);
 	void drawFullFootprintVisualization(bool inputChanged);
 
@@ -85,7 +85,7 @@ protected:
 	void drawToABufferOnly(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), unsigned int typeId = 0u, gl::GLenum drawMode = gl::GL_TRIANGLES);
 	void drawGeneralGeometry(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, bool useNormals, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 	void drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures);
-	void drawFenceGradient(bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
+	void drawFenceGradient(globjects::VertexArray * vao, std::vector<unsigned int> & indices, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f));
 	void drawWithLineRepresentation(globjects::VertexArray * vao, globjects::Buffer * vbo, std::vector<unsigned int> & indices, globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, bool renderDepthValueForTextureUsage = false, glm::vec4 specifiedColor = glm::vec4(0.7f, 0.7f, 0.7f, 1.f), gl::GLenum drawMode = gl::GL_LINE_STRIP);
 
 	void setGlState();
