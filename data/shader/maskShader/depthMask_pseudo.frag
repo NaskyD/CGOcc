@@ -1,9 +1,9 @@
 #version 430
 
-in vec2 v_screenAlignedQuad_UV;
-
 uniform int windowWidth;
 uniform int windowHeight;
+
+in vec2 v_screenAlignedQuad_UV;
 
 layout (location = 0) out vec4 FragColor;
 
