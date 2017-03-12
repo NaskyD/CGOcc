@@ -29,7 +29,10 @@ void key_callback(GLFWwindow * window, int key, int /*scancode*/, int action, in
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE)
 		glfwSetWindowShouldClose(window, true);
 	else if (key == GLFW_KEY_F5 && action == GLFW_RELEASE)
+	{
 		globjects::File::reloadAll();
+		g_painter.bindStaticTextures();
+	}
 	//else if (key == GLFW_KEY_F6 && action == GLFW_RELEASE)
 	//	g_toggleFS = !g_toggleFS;
 	else if (key == GLFW_KEY_1 && action == GLFW_RELEASE)

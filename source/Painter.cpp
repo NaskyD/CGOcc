@@ -1097,12 +1097,14 @@ void Painter::mix_onDepth(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//render Mask
+	//update(m_depthMaskProgram, false, true, true, inputChanged);
 	drawToSAQ(m_depthMaskProgram, nullptr);
 
 	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//update(m_mixByMaskProgram, false, true, true, inputChanged);
 	drawToSAQ(m_mixByMaskProgram, &m_mix_onDepthTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -1124,13 +1126,14 @@ void Painter::mix_onLayer(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//render Mask
-	//update()
+	update(m_layerMaskProgram, false, true, true, inputChanged, true);
 	drawToSAQ(m_layerMaskProgram, nullptr);
 
 	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//update(m_mixByMaskProgram, false, true, true, inputChanged);
 	drawToSAQ(m_mixByMaskProgram, &m_mix_onLayerTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);

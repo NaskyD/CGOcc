@@ -51,6 +51,7 @@ public:
     Painter(int initialWindowWidth, int initialWindowHeight);
 
 	void resizeWindow(int width, int height);
+	void bindStaticTextures();
 
     void initialize();
 	void draw(short renderMode);
@@ -111,7 +112,6 @@ protected:
 	void setUpABuffer();
 	void setUpCubeMap();
 	void loadImageToGPU(std::string & filename, gl::GLenum target, ILuint handle);
-	void bindStaticTextures();
 
 protected:
 	MeshLoader m_meshLoader;
