@@ -5,7 +5,7 @@ in vec2 v_screenAlignedQuad_UV;
 uniform int windowWidth;
 uniform int windowHeight;
 uniform int kernelSize;
-uniform sampler2D texture2;		//simple mask
+uniform sampler2D texture4;		//simple mask
 
 layout (location = 0) out vec4 FragColor;
 
@@ -15,7 +15,7 @@ const float pixelSizeY = 1.0/float(windowHeight);
 void main()
 {	
 	int abs_kernelSize = abs(kernelSize);
-	abs_kernelSize = 30;
+	abs_kernelSize = 16;
 	
 	float valid = 0.0;
 	for (int dx = -abs_kernelSize; dx <= abs_kernelSize; ++dx)
@@ -23,9 +23,9 @@ void main()
 		for (int dy = -abs_kernelSize; dy <= abs_kernelSize; ++dy)
 		{
 			vec2 textureKernel = vec2(float(dx) * pixelSizeX, float(dy) * pixelSizeY);
-			float boxTexel = texture(texture2, v_screenAlignedQuad_UV + textureKernel).x;
+			float boxTexel = texture(texture4, v_screenAlignedQuad_UV + textureKernel).x;
 			
-			valid = valid + ceil(1-boxTexel);
+			valid = valid + 1-boxTexel;
 		}
 	}
 	
@@ -34,6 +34,6 @@ void main()
 
 	FragColor = vec4(vec3(step(threshhold, valid)), 1.0);	
 	
-	//FragColor = vec4(texture(texture2, v_screenAlignedQuad_UV).xyz, 1.0);
+	//FragColor = vec4(texture(texture4, v_screenAlignedQuad_UV).xyz, 1.0);
 	//FragColor = vec4(vec3(valid/threshhold), 1.0);
 }

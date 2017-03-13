@@ -73,6 +73,7 @@ void Painter::initialize()
 	m_perspectiveDepthMaskProgram = new globjects::Program();
 	m_edgeDetectionProgram = new globjects::Program();
 	m_dilationFilterProgram = new globjects::Program();
+	m_erosionFilterProgram = new globjects::Program();
 	m_mixEnhancedEdgesProgram = new globjects::Program();
 	m_mixByMaskProgram = new globjects::Program();
 	m_depthMaskProgram = new globjects::Program();
@@ -214,6 +215,7 @@ void Painter::setUpShader()
 	//TODO: fenceGradient.geom und extrudeLines.geom unterscheiden sich nur in der Höhe
 	initializeShader_geom(*m_fenceGradientProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceGradient.geom", bp + "helperShader/fenceGradient.frag");
 	initializeShader(*m_dilationFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/dilation.frag");
+	initializeShader(*m_erosionFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/erosion.frag");
 
 	/* TODO - remove
 	m_perspectiveDepthMaskProgram->attach(
@@ -323,7 +325,7 @@ void Painter::bindStaticTextures(globjects::ref_ptr<globjects::Program> program)
 	}
 }
 
-void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged, bool to_fromABuffer)
+void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame, bool inputChanged, bool to_fromABuffer, int kernelSize)
 {
 	if (inputChanged)
 	{
@@ -331,6 +333,7 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 		setUniformOn(program, "lightVector", m_sceneLight1);
 		setUniformOn(program, "lightVector2", m_sceneLight2);
 		setUniformOn(program, "clearColor", c_clearColor);
+		setUniformOn(program, "kernelSize", kernelSize);
 	}
 
 	if (newFrame)
@@ -1129,6 +1132,16 @@ void Painter::mix_onLayer(bool inputChanged)
 	update(m_layerMaskProgram, false, true, true, inputChanged, true);
 	drawToSAQ(m_layerMaskProgram, nullptr);
 
+	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT4);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 6);
+	drawToSAQ(m_dilationFilterProgram, &m_mix_onLayerTextures);
+
+	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 6);
+	drawToSAQ(m_erosionFilterProgram, &m_mix_onLayerTextures);
+	
 	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1188,7 +1201,7 @@ void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref
 	//TODO - other setup possible?
 	setUniformOn(program, "haloColor", m_currentHaloColor);
 
-	//TODO - some textures could be statically bind only once
+	//TODO - some textures could be statically bound only once
 	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1236,7 +1249,7 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, std::vect
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
-	//TODO - some textures could be statically bind only once
+	//TODO - some textures could be statically bound only once
 	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1329,7 +1342,7 @@ void Painter::setUpMatrices()
 						  0.0f, 0.0f, 1.0f, 0.0f,
 						  0.0f, 0.0f, 0.0f, 1.0f);
 	m_view = glm::lookAt(m_camera.eye, m_camera.center, m_camera.up);
-	m_projection = glm::perspectiveFov<float>(1.74f, m_windowWidth, m_windowHeight, 0.1f, 200.f);
+	m_projection = glm::perspectiveFov<float>(1.54f, m_windowWidth, m_windowHeight, 0.1f, 200.f);
 
 	m_transform = m_projection * m_view * m_model;
 }
@@ -1343,7 +1356,7 @@ void Painter::rotateModelByTime(double timeDifference)
 		rotationValue = (float)std::fmod(timeDifference * 0.06, 2 * PI); //Speed of rotation
 
 		//freezes rotation and sets camera on a fix point
-		//rotationValue = 1.3;
+		//rotationValue = 1.35;
 	}
 	m_model = glm::rotate(m_model, rotationValue, glm::vec3(0.0, 1.0, 0.0));
 }
@@ -1361,7 +1374,7 @@ void Painter::setUpFBOs()
 
 	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
 	setFBO(m_fbo_mix_onDepth, &m_mix_onDepthTextures, 4);
-	setFBO(m_fbo_mix_onLayer, &m_mix_onLayerTextures, 4);
+	setFBO(m_fbo_mix_onLayer, &m_mix_onLayerTextures, 5);
 }
 
 void Painter::setFBO(globjects::ref_ptr<globjects::Framebuffer> & fbo, std::vector<globjects::ref_ptr<globjects::Texture>> * textures, int numberOfTextures)

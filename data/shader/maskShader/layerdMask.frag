@@ -13,7 +13,7 @@ void main()
 	
 	vec4 color = vec4(vec3(1.0), 1.0);
 	
-	if (maxIndex > 5)
+	if (maxIndex > 6)
 	{
 		color = vec4(0.0);
 	}

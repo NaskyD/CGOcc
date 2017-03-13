@@ -35,7 +35,7 @@ namespace
 	const int c_aBufferMaxLayers = 16;
 	const double PI = std::atan(1) * 4;
 	const bool c_twoLines = true;
-	const bool c_printFPS = false;
+	const bool c_printFPS = true;
 	//TODO setFenceHintsHeight outside of shader
 	const glm::vec4 c_planeColor(0.25f, 0.25f, 0.25f, 1.f);
 	const glm::vec4 c_streetsColor(0.1f, 0.1f, 0.1f, 1.f);
@@ -68,7 +68,7 @@ protected:
 									std::vector<unsigned int> & indices, bool useNormals);
 
 	void bindStaticTextures(globjects::ref_ptr<globjects::Program> program);
-	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false, bool to_fromABuffer = false);
+	void update(globjects::ref_ptr<globjects::Program> program, bool useNormals, bool renderDepthValueForTextureUsage, bool newFrame = false, bool inputChanged = false, bool to_fromABuffer = false, int kernelSize = 16);
 
 	//helper draw methods
 	void mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged);
@@ -150,6 +150,7 @@ protected:
 	//#### programs for additional effects
 	globjects::ref_ptr<globjects::Program> m_edgeDetectionProgram;
 	globjects::ref_ptr<globjects::Program> m_dilationFilterProgram;
+	globjects::ref_ptr<globjects::Program> m_erosionFilterProgram;
 	globjects::ref_ptr<globjects::Program> m_mixEnhancedEdgesProgram;
 
 	//########################################################## FBO ##########################################################
