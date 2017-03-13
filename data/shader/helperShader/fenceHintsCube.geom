@@ -7,7 +7,7 @@ layout(triangle_strip, max_vertices = 18) out;
 
 float scaleFactor = 0.3;
 //TODO: set from outside
-float height = 10.0;
+float height = 14.0;
 
 vec4 scale(vec4 vertex)
 {

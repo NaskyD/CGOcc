@@ -6,7 +6,7 @@ layout(lines) in;
 layout(line_strip, max_vertices = 4) out;
 
 //TODO: set from outside
-float height = 10.0;
+float height = 14.0;
 
 vec4 toWorldPosition(vec4 vertex)
 {

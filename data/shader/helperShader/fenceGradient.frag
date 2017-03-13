@@ -10,7 +10,7 @@ layout (location = 0) out vec4 FragColor;
 
 //TODO: set from outside
 const float minHeight = -0.7704;
-const float maxHeight = 10.0;
+const float maxHeight = 14.0;
  
 void main()
 {
