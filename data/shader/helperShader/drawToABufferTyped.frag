@@ -38,8 +38,6 @@ void main()
 	uint index = imageAtomicAdd(aBufferIndexImg, ivec2(fragCoords), 1);		//the returned index is the old value before addition
 	if(renderDepthValueForTextureUsage)
 	{
-		//typeId is used to separate different objects and stored together with the depth values
-		depthValue = depthValue;
 		imageStore(aBufferImg, ivec3(fragCoords, index), vec4(color, depthValue));
 	}
 	else
