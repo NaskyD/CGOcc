@@ -9,6 +9,7 @@ uniform bool useNormals;
 uniform bool renderDepthValueForTextureUsage;
 uniform uint typeId;												//has to be smaller than 3
 coherent uniform layout(size4x32) image2DArray aBufferImg;
+coherent uniform layout(size1x32) image2DArray aBufferAlphaImg;
 coherent uniform layout(size1x32) uimage2D aBufferIndexImg;
 coherent uniform layout(size1X32) uimage2D typeIdImg;
 
@@ -39,11 +40,13 @@ void main()
 	if(renderDepthValueForTextureUsage)
 	{
 		imageStore(aBufferImg, ivec3(fragCoords, index), vec4(color, depthValue));
+		imageStore(aBufferAlphaImg, ivec3(fragCoords, index), vec4(1.0));
 	}
 	else
 	{
 		depthValue = gl_FragCoord.z;
 		imageStore(aBufferImg, ivec3(fragCoords, index), vec4(color, depthValue));
+		imageStore(aBufferAlphaImg, ivec3(fragCoords, index), vec4(1.0));
 	}
 	
 	//store type information (4 different types storable for 16 layers)

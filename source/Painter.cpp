@@ -144,7 +144,6 @@ void Painter::initialize()
 	setUpShader();
 	setUpMatrices();
 	setUpFBOs();
-	m_aBufferTextureArrayID = 0;
 	setUpABuffer();
 	setUpCubeMap();
 	bindStaticTextures();
@@ -211,8 +210,8 @@ void Painter::setUpShader()
 	initializeShader(*m_layerMaskProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/layerdMask.frag");
 
 	//#### helper shader
-	initializeShader_geom(*m_fenceHintsCubeProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsCube.geom", bp + "basic.frag");
-	initializeShader_geom(*m_fenceHintsLineProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsLine.geom", bp + "basic.frag");
+	initializeShader_geom(*m_fenceHintsCubeProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsCube.geom", bp + "helperShader/fenceHintsGeometry.frag");
+	initializeShader_geom(*m_fenceHintsLineProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsLine.geom", bp + "helperShader/fenceHintsGeometry.frag");
 	//TODO: fenceGradient.geom und extrudeLines.geom unterscheiden sich nur in der Höhe
 	initializeShader_geom(*m_fenceGradientProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceGradient.geom", bp + "helperShader/fenceGradient.frag");
 	initializeShader(*m_dilationFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/dilation.frag");
@@ -303,26 +302,34 @@ void Painter::bindStaticTextures(globjects::ref_ptr<globjects::Program> program)
 	}
 
 	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
+	GLint loc_aBufferAlpha = program->getUniformLocation("aBufferAlphaImg");
 	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
 	GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
 
 	if (loc_aBuffer >= 0)
 	{
+		//TODO - remove glActiveTexture call if not important
 		glActiveTexture(GL_TEXTURE3);
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
 		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
+	}
+	if (loc_aBufferAlpha >= 0)
+	{
+		glActiveTexture(GL_TEXTURE5);
+		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferAlphaArrayID);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferAlphaImg"), 1);
 	}
 	if (loc_aBufferIndexTexture >= 0)
 	{
 		glActiveTexture(GL_TEXTURE4);
 		glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 2);
 	}
 	if (loc_typeIdImg >= 0)
 	{
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 3);
 	}
 }
 
@@ -847,7 +854,13 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		drawWithLineRepresentation(m_vaoLineVertices2, m_lineIndices2, m_fenceHintsLineProgram, nullptr, c_line2Color, GL_LINE_STRIP);
 	}
 
-	//########## render city to texture ##############
+		//########## clear A-Buffer and IndexImage #############
+		update(m_clearABufferProgram, false, false, true, inputChanged, true);
+		drawSAQ(m_clearABufferProgram, nullptr);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render city to A-Buffer ##############
+	/*
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -859,18 +872,33 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 
 	update(m_generalProgram, true, true);
 	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
+	*/
 
-	//########## render fence gradient to texture ##############
-	glEnable(GL_BLEND);
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	update(m_fenceGradientProgram, false, true, true, inputChanged);
-	drawFenceGradient(m_vaoLineVertices, m_lineIndices, c_lineColor);
+		update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+		drawToABufferOnly(m_vaoCity, m_cityIndices, m_toABufferTypedProgram, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+		update(m_toABufferTypedProgram, false, false, false, inputChanged);
+		drawToABufferOnly(m_vaoPlane, m_planeIndices, m_toABufferTypedProgram, c_planeColor, 0u);
+		drawToABufferOnly(m_vaoStreets, m_streetsIndices, m_toABufferTypedProgram, c_streetsColor, 0u);
+		drawToABufferOnly(m_vaoPlanePath, m_planePathIndices, m_toABufferTypedProgram, c_lineColor, 0u);
+		drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 0u);
+
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render fence gradient to A-Buffer ##############
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//update(m_fenceGradientProgram, false, true, true, inputChanged);
+		update(m_fenceGradientProgram, false, true, true, inputChanged, true);
+	//drawFenceGradient(m_vaoLineVertices, m_lineIndices, c_lineColor);
+		drawToABufferOnly(m_vaoLineVertices, m_lineIndices, m_fenceGradientProgram, c_lineColor, 3u, GL_LINE_STRIP);
 
 	if (c_twoLines)
 	{
-		drawFenceGradient(m_vaoLineVertices2, m_lineIndices2, c_line2Color);
+		//drawFenceGradient(m_vaoLineVertices2, m_lineIndices2, c_line2Color);
+			drawToABufferOnly(m_vaoLineVertices2, m_lineIndices2, m_fenceGradientProgram, c_line2Color, 3u, GL_LINE_STRIP);
 	}
-	glDisable(GL_BLEND);
+	//glDisable(GL_BLEND);
 	
 	if (forCompositing && resultTexture)
 	{
@@ -905,7 +933,8 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		update(m_fenceHintsProgram, false, false, true, inputChanged);
+		//update(m_fenceHintsProgram, false, false, true, inputChanged);
+			update(m_fenceHintsProgram, false, false, true, inputChanged, true);
 		drawSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -947,6 +976,7 @@ void Painter::drawFullFootprintVisualization(bool inputChanged)
 	unsetGlState();
 }
 
+//TODO - remove
 void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 {
 	//TODO: allgemeinerer Ansatz: mixOnDepth(enum ...) der die Visualizierungen spezifiziert
@@ -1429,8 +1459,17 @@ void Painter::setUpABuffer()
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
 	
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RGBA, GL_FLOAT, 0);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RGBA, GL_FLOAT, nullptr);
 	glBindImageTexture(0, m_aBufferTextureArrayID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
+
+	//initialize A-Buffer for alpha values
+	glGenTextures(1, &m_aBufferAlphaArrayID);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferAlphaArrayID);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
+
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_R32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RED, GL_FLOAT, nullptr);
+	glBindImageTexture(1, m_aBufferAlphaArrayID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
 
 	//initialize index texture
 	glGenTextures(1, &m_aBufferIndexTexture);
@@ -1439,16 +1478,16 @@ void Painter::setUpABuffer()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
 
 	//Uses GL_R32F instead of GL_R32I that is not working in R257.15
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
-	glBindImageTexture(1, m_aBufferIndexTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, nullptr);
+	glBindImageTexture(2, m_aBufferIndexTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 
 	//initialize type texture as image input
 	glGenTextures(1, &m_transparentTypedTexture);
 	glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
-	glBindImageTexture(2, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, nullptr);
+	glBindImageTexture(3, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 }
 
 void Painter::setUpCubeMap()

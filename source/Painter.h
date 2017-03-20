@@ -190,6 +190,7 @@ protected:
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_standardCityTexture;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_enhancedEdgeTexture;
 	gl::GLuint m_aBufferTextureArrayID;
+	gl::GLuint m_aBufferAlphaArrayID;
 	gl::GLuint m_aBufferIndexTexture;
 	gl::GLuint m_transparentTypedTexture;
 	gl::GLuint m_cubeMap;

@@ -1,10 +1,15 @@
 #version 430
 
-in float g_currentHeight;
-in vec3 pointColor;
-
 uniform vec4 specifiedColor;
 uniform bool renderDepthValueForTextureUsage;
+
+uniform uint typeId;												//has to be smaller than 3
+coherent uniform layout(size4x32) image2DArray aBufferImg;
+coherent uniform layout(size1x32) image2DArray aBufferAlphaImg;
+coherent uniform layout(size1x32) uimage2D aBufferIndexImg;
+coherent uniform layout(size1x32) uimage2D typeIdImg;
+
+in float g_currentHeight;
 
 layout (location = 0) out vec4 FragColor;
 
@@ -14,26 +19,23 @@ const float maxHeight = 14.0;
  
 void main()
 {
-	//Linearization of the depth value
-	float f = 200.0;
-	float n = 0.1f;
-	float depthValue = (2 * n) / (f + n - gl_FragCoord.z * (f - n));
-	
 	vec4 color = specifiedColor;
 	
 	float fragmentRelativeHeight = (g_currentHeight - minHeight) / (maxHeight - minHeight);
 	float factor = 1 - fragmentRelativeHeight;
 	color.a = pow(smoothstep(0.0, 1.0, factor), 2);
 	
-	//TODO: remove, if it really is not important
-	//if(renderDepthValueForTextureUsage)
-	//{
-		//FragColor = vec4(color.rgb, depthValue);
-		//FragColor = vec4(vec3(color.a), color.a);
-		//FragColor = color;
-	//}
-	//else
-	//{
-		FragColor = color;
-	//}
+	//Use ABuffer as additional render target
+	ivec2 fragCoords = ivec2(gl_FragCoord.xy);
+	uint index = imageAtomicAdd(aBufferIndexImg, ivec2(fragCoords), 1);		//the returned index is the old value before addition
+
+	imageStore(aBufferImg, ivec3(fragCoords, index), vec4(color.rgb, gl_FragCoord.z));
+	imageStore(aBufferAlphaImg, ivec3(fragCoords, index), vec4(color.a));
+
+	//store type information (4 different types storable for 16 layers)
+	uint currentTypeNumber = uint(imageLoad(typeIdImg, fragCoords));
+	uint newTypeNumber = currentTypeNumber & (~(0x3 << (2 * index))) | ((typeId & 0x3) << (2 * index));
+	imageStore(typeIdImg, fragCoords, uvec4(newTypeNumber));
+	
+	discard;
 }
