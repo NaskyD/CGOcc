@@ -247,12 +247,13 @@ bool MeshLoader::import3DFromFile(const std::string & file)
 	// If the import failed, report it
 	if (!m_importer.GetScene())
 	{
-		printf("%s\n", m_importer.GetErrorString());
+		std::cout << "Couldn't get scene: " << file.c_str() << std::endl;
+		std::cout << m_importer.GetErrorString() << std::endl;
 		return false;
 	}
 
 	// Now we can access the file's contents.
-	printf("Import of m_scene %s succeeded.", file.c_str());
+	std::cout << "Import of scene " << file.c_str() << " succeded." << std::endl;
 
 	return true;
 }
