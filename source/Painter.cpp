@@ -152,6 +152,7 @@ void Painter::initialize()
 	//set up timer
 	std::chrono::steady_clock currentTime;
 	m_applicationStartTime = currentTime.now();
+	m_lastFPS = m_applicationStartTime;
 }
 
 double Painter::getTimeDifference()
@@ -359,13 +360,16 @@ void Painter::draw(short renderMode)
 	//calculation time difference for FPS count and scene rotation
 	double time = getTimeDifference();
 	if (c_printFPS) {
+		std::chrono::steady_clock::time_point now = std::chrono::steady_clock::now();
 		double renderTime = time - m_lastTimeStamp;
 		m_lastTimeStamp = time;
 		m_renderCallsCount += 1;
 		m_avgFPS += 1.0 / renderTime;
-		if (m_renderCallsCount > 10)
+
+		if ((now - m_lastFPS) > std::chrono::milliseconds(1000))
 		{
-			std::printf("FPS:\t %f \n", m_avgFPS / m_renderCallsCount);
+			m_lastFPS = now;
+			std::cout << "FPS:\t" << m_avgFPS / m_renderCallsCount << "\r";
 			m_renderCallsCount = 0;
 			m_avgFPS = 0;
 		}
@@ -437,7 +441,7 @@ void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChange
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	update(m_edgeDetectionProgram, false, true, true);
-	drawToSAQ(m_edgeDetectionProgram, &m_enhancedEdgeTexture);
+	drawSAQ(m_edgeDetectionProgram, &m_enhancedEdgeTexture);
 
 	//TODO - use or delete dilation program
 	//update(m_dilationFilterProgram, false, true, true);
@@ -460,7 +464,7 @@ void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChange
 		m_mixEnhancedEdgesProgram->setUniform(loc_texture1, 1);
 	}
 
-	drawToSAQ(m_mixEnhancedEdgesProgram, nullptr);
+	drawSAQ(m_mixEnhancedEdgesProgram, nullptr);
 
 	unsetGlState();
 }
@@ -506,7 +510,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 
 	//########## clear A-Buffer and IndexImage #############
 	update(m_clearABufferProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_clearABufferProgram, nullptr);
+	drawSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 	
 	//########## Render extruded line to ABuffer ##############
@@ -522,12 +526,12 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 	m_currentHaloColor = c_lineColor;
 
 	update(m_haloLineABufferedProgram, false, true, true, inputChanged, true);
-	drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+	drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 
 	if(c_twoLines)
 	{
 		//########## clear A-Buffer and IndexImage #############
-		drawToSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
+		drawSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render extruded line2 to ABuffer ##############
@@ -540,7 +544,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		m_currentHaloColor = c_line2Color;
 
-		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+		drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 
 	if (forCompositing && resultTexture)
@@ -559,7 +563,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_outlineHintsProgram, false, false, true, inputChanged);
-		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+		drawSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
@@ -579,7 +583,7 @@ void Painter::drawOutlineHintsVisualization(bool inputChanged, bool forCompositi
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_outlineHintsProgram, false, false, true, inputChanged);
-		drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+		drawSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -596,7 +600,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 
 	//########## clear A-Buffer and IndexImage #############
 	update(m_clearABufferProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_clearABufferProgram, nullptr);
+	drawSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
@@ -626,7 +630,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_transparentCityProgram, false, false, true, inputChanged, true);
-		drawToSAQ(m_transparentCityProgram, nullptr);
+		drawSAQ(m_transparentCityProgram, nullptr);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
@@ -641,7 +645,7 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		update(m_transparentCityProgram, false, false, true, inputChanged, true);
-		drawToSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
+		drawSAQ(m_transparentCityProgram, &m_staticTransparancyTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -657,7 +661,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 
 	//########## clear A-Buffer and IndexImage #############
 	update(m_clearABufferProgram, false, false, true, inputChanged, true);
-	drawToSAQ(m_clearABufferProgram, nullptr);
+	drawSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
@@ -688,7 +692,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	update(m_maskingBoxFilterForAdaptiveTransparancyProgram, false, false, true, inputChanged);
-	drawToSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
+	drawSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	
@@ -714,7 +718,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
-		drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+		drawSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
@@ -733,7 +737,7 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_adaptiveTransparancyPerPixelProgram, false, false, true, inputChanged, true);
-		drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+		drawSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -773,7 +777,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 	m_fboGhostedView->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_maskingBoxFilterForGhostedViewProgram, false, true, true, inputChanged);
-	drawToSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
+	drawSAQ(m_maskingBoxFilterForGhostedViewProgram, &m_ghostedViewTextures);
 
 	if (forCompositing && resultTexture)
 	{
@@ -790,7 +794,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_ghostedViewProgram, false, false, true, inputChanged);
-		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+		drawSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
@@ -809,7 +813,7 @@ void Painter::drawGhostedViewVisualization(bool inputChanged, bool forCompositin
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_ghostedViewProgram, false, false, true, inputChanged);
-		drawToSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
+		drawSAQ(m_ghostedViewProgram, &m_ghostedViewTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -883,7 +887,7 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_fenceHintsProgram, false, false, true, inputChanged);
-		drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
+		drawSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	}
@@ -902,7 +906,7 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		update(m_fenceHintsProgram, false, false, true, inputChanged);
-		drawToSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
+		drawSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -958,7 +962,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 
 	//++ first visualization ++
 	//########## clear A-Buffer and IndexImage #############
-	drawToSAQ(m_clearABufferProgram, nullptr);
+	drawSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## Render city+plane+streets image to FBO ##############
@@ -989,12 +993,12 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 	m_currentHaloColor = c_lineColor;
 
-	drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+	drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 
 	if (c_twoLines)
 	{
 		//########## clear A-Buffer and IndexImage #############
-		drawToSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
+		drawSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
 		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 		//########## Render extruded line2 to ABuffer ##############
@@ -1008,7 +1012,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 		m_currentHaloColor = c_line2Color;
-		drawToSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+		drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
 	}
 	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -1020,7 +1024,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
 	m_outlineHintsTextures.at(1)->bindActive(GL_TEXTURE1);
 	m_outlineHintsTextures.at(2)->bindActive(GL_TEXTURE2);
-	drawToSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+	drawSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	unsetGlState();
@@ -1028,7 +1032,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	//++ second visualization ++
 	//########## clear A-Buffer and IndexImage #############
 	setGlState();
-	drawToSAQ(m_clearABufferProgram, nullptr);
+	drawSAQ(m_clearABufferProgram, nullptr);
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render city to A-Buffer ############
@@ -1052,7 +1056,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	//########## enhance transparancy mask texture with box-filter ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	drawToSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
+	drawSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
 	
 	//########## render city & flatLines to texture ############
 	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
@@ -1071,7 +1075,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_adaptiveTransparancyPerPixelTextures[0]->bindActive(GL_TEXTURE0);
 	m_adaptiveTransparancyPerPixelTextures[1]->bindActive(GL_TEXTURE1);
 	m_adaptiveTransparancyPerPixelTextures[2]->bindActive(GL_TEXTURE2);
-	drawToSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+	drawSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 	unsetGlState();
@@ -1082,7 +1086,7 @@ void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
 	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(0)->bindActive(GL_TEXTURE0);
 	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(1)->bindActive(GL_TEXTURE1);
 	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(2)->bindActive(GL_TEXTURE2);
-	drawToSAQ(m_mixByMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
+	drawSAQ(m_mixByMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
 
 	unsetGlState();
 }
@@ -1101,14 +1105,14 @@ void Painter::mix_onDepth(bool inputChanged)
 
 	//render Mask
 	//update(m_depthMaskProgram, false, true, true, inputChanged);
-	drawToSAQ(m_depthMaskProgram, nullptr);
+	drawSAQ(m_depthMaskProgram, nullptr);
 
 	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//update(m_mixByMaskProgram, false, true, true, inputChanged);
-	drawToSAQ(m_mixByMaskProgram, &m_mix_onDepthTextures);
+	drawSAQ(m_mixByMaskProgram, &m_mix_onDepthTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -1130,24 +1134,24 @@ void Painter::mix_onLayer(bool inputChanged)
 
 	//render Mask
 	update(m_layerMaskProgram, false, true, true, inputChanged, true);
-	drawToSAQ(m_layerMaskProgram, nullptr);
+	drawSAQ(m_layerMaskProgram, nullptr);
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT4);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 6);
-	drawToSAQ(m_dilationFilterProgram, &m_mix_onLayerTextures);
+	drawSAQ(m_dilationFilterProgram, &m_mix_onLayerTextures);
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 6);
-	drawToSAQ(m_erosionFilterProgram, &m_mix_onLayerTextures);
+	drawSAQ(m_erosionFilterProgram, &m_mix_onLayerTextures);
 	
 	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//update(m_mixByMaskProgram, false, true, true, inputChanged);
-	drawToSAQ(m_mixByMaskProgram, &m_mix_onLayerTextures);
+	drawSAQ(m_mixByMaskProgram, &m_mix_onLayerTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -1193,7 +1197,7 @@ void Painter::drawGeneralGeometry(globjects::VertexArray * vao, std::vector<unsi
 	program->release();
 }
 
-void Painter::drawToSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
+void Painter::drawSAQ(globjects::Program * program, std::vector<globjects::ref_ptr<globjects::Texture>> * textures)
 {
 	if (!program)
 		return;
