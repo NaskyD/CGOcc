@@ -15,7 +15,6 @@ const float pixelSizeY = 1.0/float(windowHeight);
 void main()
 {	
 	int abs_kernelSize = abs(kernelSize);
-	abs_kernelSize = 16;
 	
 	float valid = 0.0;
 	for (int dx = -abs_kernelSize; dx <= abs_kernelSize; ++dx)
