@@ -34,6 +34,7 @@ Painter::Painter(int initialWindowWidth, int initialWindowHeight)
 	, m_renderMode(0)
 	, m_inputChanged(true)
 	, m_timeValid(true)
+	, m_cameraMode(CameraMode::Rotation)
 {
 }
 
@@ -432,6 +433,11 @@ void Painter::draw(short renderMode)
 	}
 
 	m_inputChanged = false;
+}
+
+void Painter::setCameraMode(CameraMode mode)
+{
+	m_cameraMode = mode;
 }
 
 void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged)
@@ -1168,12 +1174,12 @@ void Painter::mix_onLayer(bool inputChanged)
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT4);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 6);
+	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 2); //30
 	drawSAQ(m_dilationFilterProgram, &m_mix_onLayerTextures);
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 6);
+	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 1); //16
 	drawSAQ(m_erosionFilterProgram, &m_mix_onLayerTextures);
 	
 	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
@@ -1387,10 +1393,27 @@ void Painter::rotateModelByTime(double timeDifference)
 	if (m_timeValid)
 	{
 		m_model = glm::mat4();
-		rotationValue = (float)std::fmod(timeDifference * 0.06, 2 * PI); //Speed of rotation
 
-		//freezes rotation and sets camera on a fix point
-		//rotationValue = 1.35;
+		switch (m_cameraMode) {
+		case CameraMode::Rotation:
+		{
+			rotationValue = (float)std::fmod(timeDifference * 0.06, 2 * PI); //Speed of rotation
+			break;
+		}
+		case CameraMode::Pos1:
+		{
+			rotationValue = 1.35f;
+			break;
+		}
+		case CameraMode::Pos2:
+		{
+			rotationValue = 3.0f;
+			break;
+		}
+		default:
+			rotationValue = (float)std::fmod(timeDifference * 0.16, 2 * PI); //Speed of rotation
+		}
+			
 	}
 	m_model = glm::rotate(m_model, rotationValue, glm::vec3(0.0, 1.0, 0.0));
 }

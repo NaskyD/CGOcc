@@ -48,6 +48,13 @@ namespace
 class Painter
 {
 public:
+	enum class CameraMode {
+		Rotation,
+		Pos1,
+		Pos2
+	};
+
+public:
     Painter(int initialWindowWidth, int initialWindowHeight);
 
 	void resizeWindow(int width, int height);
@@ -55,6 +62,8 @@ public:
 
     void initialize();
 	void draw(short renderMode);
+
+	void setCameraMode(CameraMode mode);
 
 protected:
 	double getTimeDifference();
@@ -270,4 +279,6 @@ protected:
 	unsigned short m_renderMode;
 	bool m_inputChanged;
 	bool m_timeValid;
+
+	CameraMode m_cameraMode;
 };
