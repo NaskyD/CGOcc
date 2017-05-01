@@ -53,7 +53,6 @@ void main()
 	}
 	
 	sum = abs(sumHorizontal) + abs(sumVertical) + abs(sumFirstD) + abs(sumSecondD);
-	//sum = step(1.3, sum);
 	float grey_sum = (sum.x + sum.y + sum.z) / 3.0;
 
 	//with normal cube textures

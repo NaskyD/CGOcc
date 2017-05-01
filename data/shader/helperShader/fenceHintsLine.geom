@@ -1,16 +1,14 @@
 #version 330 core
 
 uniform mat4 transform;
+uniform float geometryHeight;
 
 layout(lines) in;
 layout(line_strip, max_vertices = 4) out;
 
-//TODO: set from outside
-float height = 14.0;
-
 vec4 toWorldPosition(vec4 vertex)
 {
-	vertex.y = vertex.y + height;
+	vertex.y = vertex.y + geometryHeight;
 	return transform * vertex;
 } 
 

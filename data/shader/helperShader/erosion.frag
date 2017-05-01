@@ -28,11 +28,7 @@ void main()
 		}
 	}
 	
-	//valid = valid/float(abs_kernelSize*abs_kernelSize/2);
 	float threshhold = (2*abs_kernelSize+1)*(2*abs_kernelSize+1) / abs_kernelSize;
 
 	FragColor = vec4(vec3(step(threshhold, valid)), 1.0);	
-	
-	//FragColor = vec4(texture(texture4, v_screenAlignedQuad_UV).xyz, 1.0);
-	//FragColor = vec4(vec3(valid/threshhold), 1.0);
 }

@@ -34,7 +34,6 @@ Painter::Painter(int initialWindowWidth, int initialWindowHeight)
 	, m_renderMode(0)
 	, m_inputChanged(true)
 	, m_timeValid(true)
-	, m_cameraMode(CameraMode::Rotation)
 {
 }
 
@@ -105,6 +104,7 @@ void Painter::initialize()
 	m_fboAdaptiveTranspancyPerPixel = new globjects::Framebuffer();
 	m_fboGhostedView = new globjects::Framebuffer();
 	m_fboFenceHints = new globjects::Framebuffer();
+	m_fboPerspectiveDepthMask = new globjects::Framebuffer();
 	m_fboEdgeEnhancement = new globjects::Framebuffer();
 	m_fbo_mix_onDepth = new globjects::Framebuffer();
 	m_fbo_mix_onLayer = new globjects::Framebuffer();
@@ -144,12 +144,14 @@ void Painter::initialize()
 	setUpShader();
 	setUpMatrices();
 	setUpFBOs();
+	m_aBufferTextureArrayID = 0;
 	setUpABuffer();
 	setUpCubeMap();
 	bindStaticTextures();
 
 	//set up timer
-	m_applicationStartTime = std::chrono::steady_clock::now();
+	std::chrono::steady_clock currentTime;
+	m_applicationStartTime = currentTime.now();
 	m_lastFPS = m_applicationStartTime;
 }
 
@@ -183,53 +185,50 @@ void Painter::setUpShader()
 {
 	std::string bp{ "data/shader/" };
 
-	initializeShader(*m_generalProgram, bp + std::string("basic.vert"), bp + std::string("basic.frag"));
-	initializeShader(*m_mixByMaskProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("mixByMask.frag"));
+	initializeShader(*m_generalProgram, bp + "basic.vert", bp + "basic.frag");
+	initializeShader(*m_mixByMaskProgram, bp + "screenAlignedQuad.vert", bp + "mixByMask.frag");
 
 	//#### visualization techniques
-	initializeShader(*m_outlineHintsProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("visualizationTechniques/outlineHints.frag"));
-	initializeShader(*m_transparentCityProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("visualizationTechniques/staticTransparancy.frag"));
-	initializeShader(*m_adaptiveTransparancyPerPixelProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("visualizationTechniques/adaptiveTransparancyPerPixel.frag"));
-	initializeShader(*m_ghostedViewProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("visualizationTechniques/ghostedView.frag"));
-	initializeShader(*m_fenceHintsProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("visualizationTechniques/fenceHints.frag"));
-	initializeShader(*m_footprintProgram, bp + std::string("visualizationTechniques/footprint.vert"), bp + std::string("basic.frag"));
+	initializeShader(*m_outlineHintsProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/outlineHints.frag");
+	initializeShader(*m_transparentCityProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/staticTransparancy.frag");
+	initializeShader(*m_adaptiveTransparancyPerPixelProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/adaptiveTransparancyPerPixel.frag");
+	initializeShader(*m_ghostedViewProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/ghostedView.frag");
+	initializeShader(*m_fenceHintsProgram, bp + "screenAlignedQuad.vert", bp + "visualizationTechniques/fenceHints.frag");
+	initializeShader(*m_footprintProgram, bp + "visualizationTechniques/footprint.vert", bp + "basic.frag");
 
 	//#### A-Buffer related
-	initializeShader_geom(*m_extrudedLinetoABufferOnlyProgram, bp + std::string("basicWithoutTransform.vert"), bp + std::string("helperShader/extrudeLines.geom"), bp + std::string("helperShader/drawToABufferOnly.frag"));
-	initializeShader(*m_haloLineABufferedProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("helperShader/haloLineABuffered.frag"));
-	initializeShader(*m_clearABufferProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("helperShader/clearABuffer.frag"));
-	initializeShader(*m_sortABufferProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("helperShader/sortABuffer.frag"));
-	initializeShader(*m_toABufferOnlyProgram, bp + std::string("basic.vert"), bp + std::string("helperShader/drawToABufferOnly.frag"));
-	initializeShader(*m_toABufferTypedProgram, bp + std::string("basic.vert"), bp + std::string("helperShader/drawToABufferTyped.frag"));
-
-	GLint loc_geometryHeight = m_extrudedLinetoABufferOnlyProgram->getUniformLocation(std::string("geometryHeight"));
-	m_extrudedLinetoABufferOnlyProgram->setUniform(loc_geometryHeight, 50.f);
+	initializeShader_geom(*m_extrudedLinetoABufferOnlyProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/extrudeLines.geom", bp + "helperShader/drawToABufferOnly.frag");
+	initializeShader(*m_haloLineABufferedProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/haloLineABuffered.frag");
+	initializeShader(*m_clearABufferProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/clearABuffer.frag");
+	initializeShader(*m_sortABufferProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/sortABuffer.frag");	//TODO - not used?
+	initializeShader(*m_toABufferOnlyProgram, bp + "basic.vert", bp + "helperShader/drawToABufferOnly.frag");
+	initializeShader(*m_toABufferTypedProgram, bp + "basic.vert", bp + "helperShader/drawToABufferTyped.frag");
 
 	//#### mask shader
-	initializeShader(*m_maskingBoxFilterForAdaptiveTransparancyProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("maskShader/maskingBoxFilterAdaptiveTransparancy.frag"));
-	initializeShader(*m_maskingBoxFilterForGhostedViewProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("maskShader/maskingBoxFilterGhostedView.frag"));
-	initializeShader(*m_depthMaskProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("maskShader/depthMask.frag"));
-	initializeShader(*m_layerMaskProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("maskShader/layerdMask.frag"));
+	initializeShader(*m_maskingBoxFilterForAdaptiveTransparancyProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/maskingBoxFilterAdaptiveTransparancy.frag");
+	initializeShader(*m_maskingBoxFilterForGhostedViewProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/maskingBoxFilterGhostedView.frag");
+	initializeShader(*m_depthMaskProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/depthMask.frag");
+	initializeShader(*m_layerMaskProgram, bp + "screenAlignedQuad.vert", bp + "maskShader/layerdMask.frag");
 
 	//#### helper shader
-	initializeShader_geom(*m_fenceHintsCubeProgram, bp + std::string("basicWithoutTransform.vert"), bp + std::string("helperShader/fenceHintsCube.geom"), bp + std::string("helperShader/fenceHintsGeometry.frag"));
-	initializeShader_geom(*m_fenceHintsLineProgram, bp + std::string("basicWithoutTransform.vert"), bp + std::string("helperShader/fenceHintsLine.geom"), bp + std::string("helperShader/fenceHintsGeometry.frag"));
-	initializeShader_geom(*m_fenceGradientProgram, bp + std::string("basicWithoutTransform.vert"), bp + std::string("helperShader/fenceGradient.geom"), bp + std::string("helperShader/fenceGradient.frag"));
-	initializeShader(*m_dilationFilterProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("helperShader/dilation.frag"));
-	initializeShader(*m_erosionFilterProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("helperShader/erosion.frag"));
+	initializeShader_geom(*m_fenceHintsCubeProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsCube.geom", bp + "basic.frag");
+	initializeShader_geom(*m_fenceHintsLineProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceHintsLine.geom", bp + "basic.frag");
+	//TODO: fenceGradient.geom und extrudeLines.geom unterscheiden sich nur in der Höhe
+	initializeShader_geom(*m_fenceGradientProgram, bp + "basicWithoutTransform.vert", bp + "helperShader/fenceGradient.geom", bp + "helperShader/fenceGradient.frag");
+	initializeShader(*m_dilationFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/dilation.frag");
+	initializeShader(*m_erosionFilterProgram, bp + "screenAlignedQuad.vert", bp + "helperShader/erosion.frag");
 
-	loc_geometryHeight = m_fenceHintsCubeProgram->getUniformLocation(std::string("geometryHeight"));
-	m_fenceHintsCubeProgram->setUniform(loc_geometryHeight, 14.f);
-
-	loc_geometryHeight = m_fenceHintsLineProgram->getUniformLocation(std::string("geometryHeight"));
-	m_fenceHintsLineProgram->setUniform(loc_geometryHeight, 14.f);
-
-	loc_geometryHeight = m_fenceGradientProgram->getUniformLocation(std::string("geometryHeight"));
-	m_fenceGradientProgram->setUniform(loc_geometryHeight, 14.f);
+	/* TODO - remove
+	m_perspectiveDepthMaskProgram->attach(
+		globjects::Shader::fromFile(gl::GL_VERTEX_SHADER, "data/screenAlignedQuad.vert"),
+		globjects::Shader::fromFile(gl::GL_FRAGMENT_SHADER, "data/depthMask.frag")
+	);
+	m_perspectiveDepthMaskProgram->link();
+	*/
 
 	//#### additional effekt shader
-	initializeShader(*m_edgeDetectionProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("additionalEffektShader/edgeDetection.frag"));
-	initializeShader(*m_mixEnhancedEdgesProgram, bp + std::string("screenAlignedQuad.vert"), bp + std::string("additionalEffektShader/mixEnhancedEdge.frag"));
+	initializeShader(*m_edgeDetectionProgram, bp + "screenAlignedQuad.vert", bp + "additionalEffektShader/edgeDetection.frag");
+	initializeShader(*m_mixEnhancedEdgesProgram, bp + "screenAlignedQuad.vert", bp + "additionalEffektShader/mixEnhancedEdge.frag");
 }
 
 void Painter::loadGeometry()
@@ -304,7 +303,6 @@ void Painter::bindStaticTextures(globjects::ref_ptr<globjects::Program> program)
 	}
 
 	GLint loc_aBuffer = program->getUniformLocation("aBufferImg");
-	GLint loc_aBufferAlpha = program->getUniformLocation("aBufferAlphaImg");
 	GLint loc_aBufferIndexTexture = program->getUniformLocation("aBufferIndexImg");
 	GLint loc_typeIdImg = program->getUniformLocation("typeIdImg");
 
@@ -314,23 +312,17 @@ void Painter::bindStaticTextures(globjects::ref_ptr<globjects::Program> program)
 		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferTextureArrayID);
 		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferImg"), 0);
 	}
-	if (loc_aBufferAlpha >= 0)
-	{
-		glActiveTexture(GL_TEXTURE5);
-		glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferAlphaArrayID);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferAlphaImg"), 1);
-	}
 	if (loc_aBufferIndexTexture >= 0)
 	{
 		glActiveTexture(GL_TEXTURE4);
 		glBindTexture(GL_TEXTURE_2D, m_aBufferIndexTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 2);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "aBufferIndexImg"), 1);
 	}
 	if (loc_typeIdImg >= 0)
 	{
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
-		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 3);
+		glProgramUniform1i(program->id(), glGetUniformLocation(program->id(), "typeIdImg"), 2);
 	}
 }
 
@@ -338,6 +330,9 @@ void Painter::update(globjects::ref_ptr<globjects::Program> program, bool useNor
 {
 	if (inputChanged)
 	{
+		//TODO - how much of these are still needed?
+		setUniformOn(program, "lightVector", m_sceneLight1);
+		setUniformOn(program, "lightVector2", m_sceneLight2);
 		setUniformOn(program, "clearColor", c_clearColor);
 		setUniformOn(program, "kernelSize", kernelSize);
 	}
@@ -416,6 +411,7 @@ void Painter::draw(short renderMode)
 		drawFullFootprintVisualization(m_inputChanged);
 		break;
 	case 10:
+		//mix_outlineHints_adaptiveTransparancy_onDepth(m_inputChanged);
 		mix_onDepth(m_inputChanged);
 		break;
 	case 11:
@@ -429,11 +425,6 @@ void Painter::draw(short renderMode)
 	}
 
 	m_inputChanged = false;
-}
-
-void Painter::setCameraMode(CameraMode mode)
-{
-	m_cameraMode = mode;
 }
 
 void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChanged)
@@ -451,6 +442,10 @@ void Painter::mixWithEnhancedEdges(globjects::Texture & source, bool inputChange
 
 	update(m_edgeDetectionProgram, false, true, true);
 	drawSAQ(m_edgeDetectionProgram, &m_enhancedEdgeTexture);
+
+	//TODO - use or delete dilation program
+	//update(m_dilationFilterProgram, false, true, true);
+	//drawToSAQ(m_dilationFilterProgram, &m_enhancedEdgeTexture);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
 
@@ -621,6 +616,8 @@ void Painter::drawStaticTransparancyVisualization(bool inputChanged, bool forCom
 	drawToABufferOnly(m_vaoPlanePath, m_planePathIndices, m_toABufferTypedProgram, c_lineColor, 3u);
 	drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 3u);
 
+	//drawToSAQ(m_sortABufferProgram, nullptr);
+
 	if (forCompositing && resultTexture)
 	{
 		//########## Render to resultTexture ##############
@@ -678,6 +675,8 @@ void Painter::drawAdaptiveTransparancyPerPixelVisualization(bool inputChanged, b
 	drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 3u);
 
 	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//drawToSAQ(m_sortABufferProgram, nullptr);
 
 	//########## render transparancy mask texture ############
 	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
@@ -833,6 +832,7 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//TODO - is the texture parameter in drawWith... still important -> only nullptr right now
 	update(m_fenceHintsCubeProgram, false, true, true, inputChanged);
 	drawWithLineRepresentation(m_vaoLineVertices, m_lineIndices, m_fenceHintsCubeProgram, nullptr, c_lineColor, GL_POINTS);
 	if (c_twoLines)
@@ -847,30 +847,51 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		drawWithLineRepresentation(m_vaoLineVertices2, m_lineIndices2, m_fenceHintsLineProgram, nullptr, c_line2Color, GL_LINE_STRIP);
 	}
 
-	//########## clear A-Buffer and IndexImage #############
-	update(m_clearABufferProgram, false, false, true, inputChanged, true);
-	drawSAQ(m_clearABufferProgram, nullptr);
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+		//########## clear A-Buffer and IndexImage #############
+		update(m_clearABufferProgram, false, false, true, inputChanged, true);
+		drawSAQ(m_clearABufferProgram, nullptr);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
-	update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
-	drawToABufferOnly(m_vaoCity, m_cityIndices, m_toABufferTypedProgram, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+	//########## render city to A-Buffer ##############
+	/*
+	m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	update(m_toABufferTypedProgram, false, false, false, inputChanged);
-	drawToABufferOnly(m_vaoPlane, m_planeIndices, m_toABufferTypedProgram, c_planeColor, 0u);
-	drawToABufferOnly(m_vaoStreets, m_streetsIndices, m_toABufferTypedProgram, c_streetsColor, 0u);
-	drawToABufferOnly(m_vaoPlanePath, m_planePathIndices, m_toABufferTypedProgram, c_lineColor, 0u);
-	drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 0u);
+	update(m_generalProgram, false, true, true, inputChanged);
+	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
+	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
 
-	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	update(m_generalProgram, true, true);
+	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
+	*/
+
+		update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+		drawToABufferOnly(m_vaoCity, m_cityIndices, m_toABufferTypedProgram, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+		update(m_toABufferTypedProgram, false, false, false, inputChanged);
+		drawToABufferOnly(m_vaoPlane, m_planeIndices, m_toABufferTypedProgram, c_planeColor, 0u);
+		drawToABufferOnly(m_vaoStreets, m_streetsIndices, m_toABufferTypedProgram, c_streetsColor, 0u);
+		drawToABufferOnly(m_vaoPlanePath, m_planePathIndices, m_toABufferTypedProgram, c_lineColor, 0u);
+		drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 0u);
+
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 
 	//########## render fence gradient to A-Buffer ##############
-	update(m_fenceGradientProgram, false, true, true, inputChanged, true);
-	drawToABufferOnly(m_vaoLineVertices, m_lineIndices, m_fenceGradientProgram, c_lineColor, 3u, GL_LINE_STRIP);
+	//glEnable(GL_BLEND);
+	//glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	//update(m_fenceGradientProgram, false, true, true, inputChanged);
+		update(m_fenceGradientProgram, false, true, true, inputChanged, true);
+	//drawFenceGradient(m_vaoLineVertices, m_lineIndices, c_lineColor);
+		drawToABufferOnly(m_vaoLineVertices, m_lineIndices, m_fenceGradientProgram, c_lineColor, 3u, GL_LINE_STRIP);
 
 	if (c_twoLines)
 	{
-		drawToABufferOnly(m_vaoLineVertices2, m_lineIndices2, m_fenceGradientProgram, c_line2Color, 3u, GL_LINE_STRIP);
+		//drawFenceGradient(m_vaoLineVertices2, m_lineIndices2, c_line2Color);
+			drawToABufferOnly(m_vaoLineVertices2, m_lineIndices2, m_fenceGradientProgram, c_line2Color, 3u, GL_LINE_STRIP);
 	}
+	//glDisable(GL_BLEND);
 	
 	if (forCompositing && resultTexture)
 	{
@@ -905,7 +926,8 @@ void Painter::drawFenceHintsVisualization(bool inputChanged, bool forCompositing
 		m_fboFenceHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-		update(m_fenceHintsProgram, false, false, true, inputChanged, true);
+		//update(m_fenceHintsProgram, false, false, true, inputChanged);
+			update(m_fenceHintsProgram, false, false, true, inputChanged, true);
 		drawSAQ(m_fenceHintsProgram, &m_fenceHintsTextures);
 
 		globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -947,6 +969,151 @@ void Painter::drawFullFootprintVisualization(bool inputChanged)
 	unsetGlState();
 }
 
+//TODO - remove
+void Painter::mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged)
+{
+	//TODO: allgemeinerer Ansatz: mixOnDepth(enum ...) der die Visualizierungen spezifiziert
+	setGlState();
+	
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//TODO- updates einführen
+	//drawToSAQ(m_perspectiveDepthMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//++ first visualization ++
+	//########## clear A-Buffer and IndexImage #############
+	drawSAQ(m_clearABufferProgram, nullptr);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## Render city+plane+streets image to FBO ##############
+	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	update(m_generalProgram, false, true, true, inputChanged);
+	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
+	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
+
+	update(m_generalProgram, true, true, true, inputChanged);
+	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
+
+	//########## Render extruded line to ABuffer ##############
+	update(m_extrudedLinetoABufferOnlyProgram, false, true, true, inputChanged, true);
+	//drawToABufferOnly(m_vaoLine/**/, m_vboLineIndices/**/, m_lineIndices_OLD/**/, m_toABufferOnlyProgram/*m_extrudedLinetoABufferOnlyProgram*/, false, true, glm::vec4(1.f, 1.f, 1.f, 1.f)/*, 0u, gl::GL_LINE_STRIP*/);
+	drawToABufferOnly(m_vaoLineVertices, m_lineIndices, m_extrudedLinetoABufferOnlyProgram, glm::vec4(1.f, 1.f, 1.f, 1.f), 0u, gl::GL_LINE_STRIP);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//########## Render halo image to FBO ##############
+	m_fboOutlineHints->bind(GL_FRAMEBUFFER);
+	glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+	m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+	m_currentHaloColor = c_lineColor;
+
+	drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+
+	if (c_twoLines)
+	{
+		//########## clear A-Buffer and IndexImage #############
+		drawSAQ(m_clearABufferProgram, &m_outlineHintsTextures);
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		//########## Render extruded line2 to ABuffer ##############
+		update(m_toABufferOnlyProgram, false, true, true, inputChanged, true);
+		drawToABufferOnly(m_vaoLine2_realGeometry, m_line2Indices_OLD, m_toABufferOnlyProgram, glm::vec4(1.f, 1.f, 1.f, 1.f));
+		glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		//########## Render halo from line2 image to FBO ##############
+		glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+		m_fboOutlineHints->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+		m_currentHaloColor = c_line2Color;
+		drawSAQ(m_haloLineABufferedProgram, &m_outlineHintsTextures);
+	}
+	glClearColor(c_clearColor.x, c_clearColor.y, c_clearColor.z, 1.0f);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+
+	//########## Render to mixture_FBO texture ##############
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_outlineHintsTextures.at(0)->bindActive(GL_TEXTURE0);
+	m_outlineHintsTextures.at(1)->bindActive(GL_TEXTURE1);
+	m_outlineHintsTextures.at(2)->bindActive(GL_TEXTURE2);
+	drawSAQ(m_outlineHintsProgram, &m_outlineHintsTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	unsetGlState();
+
+	//++ second visualization ++
+	//########## clear A-Buffer and IndexImage #############
+	setGlState();
+	drawSAQ(m_clearABufferProgram, nullptr);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render city to A-Buffer ############
+	update(m_toABufferTypedProgram, true, false, true, inputChanged, true);
+	drawToABufferOnly(m_vaoCity, m_cityIndices, m_toABufferTypedProgram, glm::vec4(0.7f, 0.7f, 0.7f, 1.f), 0u);
+
+	update(m_toABufferTypedProgram, false, false, false, inputChanged);
+	drawToABufferOnly(m_vaoPlane, m_planeIndices, m_toABufferTypedProgram, c_planeColor, 1u);
+	drawToABufferOnly(m_vaoStreets, m_streetsIndices, m_toABufferTypedProgram, c_streetsColor, 2u);
+	drawToABufferOnly(m_vaoPlanePath, m_planePathIndices, m_toABufferTypedProgram, c_lineColor, 3u);
+	drawToABufferOnly(m_vaoPlanePath2, m_planePath2Indices, m_toABufferTypedProgram, c_line2Color, 3u);
+	glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+	//########## render transparancy mask texture ############
+	m_fboAdaptiveTranspancyPerPixel->bind(GL_FRAMEBUFFER);
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT0);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
+	
+	//########## enhance transparancy mask texture with box-filter ############
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawSAQ(m_maskingBoxFilterForAdaptiveTransparancyProgram, &m_adaptiveTransparancyPerPixelTextures);
+	
+	//########## render city & flatLines to texture ############
+	m_fboAdaptiveTranspancyPerPixel->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	drawGeneralGeometry(m_vaoCity, m_cityIndices, m_generalProgram);
+	drawGeneralGeometry(m_vaoPlane, m_planeIndices, m_generalProgram, c_planeColor);
+	drawGeneralGeometry(m_vaoStreets, m_streetsIndices, m_generalProgram, c_streetsColor);
+	drawGeneralGeometry(m_vaoPlanePath, m_planePathIndices, m_generalProgram, c_lineColor);
+	drawGeneralGeometry(m_vaoPlanePath2, m_planePath2Indices, m_generalProgram, c_line2Color);
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	
+	//########## Render to mixture_FBO texture ##############
+	m_fboPerspectiveDepthMask->bind(GL_FRAMEBUFFER);
+	m_fboPerspectiveDepthMask->setDrawBuffer(GL_COLOR_ATTACHMENT2);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_adaptiveTransparancyPerPixelTextures[0]->bindActive(GL_TEXTURE0);
+	m_adaptiveTransparancyPerPixelTextures[1]->bindActive(GL_TEXTURE1);
+	m_adaptiveTransparancyPerPixelTextures[2]->bindActive(GL_TEXTURE2);
+	drawSAQ(m_adaptiveTransparancyPerPixelProgram, &m_adaptiveTransparancyPerPixelTextures);
+
+	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
+	unsetGlState();
+
+	//++ mixing both visualizations ++
+	setGlState();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(0)->bindActive(GL_TEXTURE0);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(1)->bindActive(GL_TEXTURE1);
+	m_mix_outlineHints_adaptiveTransparancy_onDepth_textures.at(2)->bindActive(GL_TEXTURE2);
+	drawSAQ(m_mixByMaskProgram, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures);
+
+	unsetGlState();
+}
+
 void Painter::mix_onDepth(bool inputChanged)
 {
 	setGlState();
@@ -960,12 +1127,14 @@ void Painter::mix_onDepth(bool inputChanged)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//render Mask
+	//update(m_depthMaskProgram, false, true, true, inputChanged);
 	drawSAQ(m_depthMaskProgram, nullptr);
 
 	m_fbo_mix_onDepth->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onDepth->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//update(m_mixByMaskProgram, false, true, true, inputChanged);
 	drawSAQ(m_mixByMaskProgram, &m_mix_onDepthTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -992,18 +1161,19 @@ void Painter::mix_onLayer(bool inputChanged)
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT4);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 2); //30
+	update(m_dilationFilterProgram, false, true, true, inputChanged, false, 6);
 	drawSAQ(m_dilationFilterProgram, &m_mix_onLayerTextures);
 
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT2);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 1); //16
+	update(m_erosionFilterProgram, false, true, true, inputChanged, false, 6);
 	drawSAQ(m_erosionFilterProgram, &m_mix_onLayerTextures);
 	
 	m_fbo_mix_onLayer->bind(GL_FRAMEBUFFER);
 	m_fbo_mix_onLayer->setDrawBuffer(GL_COLOR_ATTACHMENT3);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//update(m_mixByMaskProgram, false, true, true, inputChanged);
 	drawSAQ(m_mixByMaskProgram, &m_mix_onLayerTextures);
 
 	globjects::Framebuffer::unbind(GL_FRAMEBUFFER);
@@ -1055,8 +1225,10 @@ void Painter::drawSAQ(globjects::Program * program, std::vector<globjects::ref_p
 	if (!program)
 		return;
 
+	//TODO - other setup possible?
 	setUniformOn(program, "haloColor", m_currentHaloColor);
 
+	//TODO - some textures could be statically bound only once
 	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1080,6 +1252,7 @@ void Painter::drawSAQ(globjects::Program * program, std::vector<globjects::ref_p
 	program->release();
 }
 
+//TODO Maybe remove later
 void Painter::drawFenceGradient(globjects::VertexArray * vao, std::vector<unsigned int> & indices, glm::vec4 specifiedColor)
 {
 	if (!vao)
@@ -1103,6 +1276,7 @@ void Painter::drawWithLineRepresentation(globjects::VertexArray * vao, std::vect
 
 	setUniformOn(program, "specifiedColor", specifiedColor);
 
+	//TODO - some textures could be statically bound only once
 	if (textures)
 	{
 		for (int i = 0; i < textures->size(); i++)
@@ -1206,27 +1380,10 @@ void Painter::rotateModelByTime(double timeDifference)
 	if (m_timeValid)
 	{
 		m_model = glm::mat4();
+		rotationValue = (float)std::fmod(timeDifference * 0.06, 2 * PI); //Speed of rotation
 
-		switch (m_cameraMode) {
-		case CameraMode::Rotation:
-		{
-			rotationValue = (float)std::fmod(timeDifference * 0.06, 2 * PI); //Speed of rotation
-			break;
-		}
-		case CameraMode::Pos1:
-		{
-			rotationValue = 1.35f;
-			break;
-		}
-		case CameraMode::Pos2:
-		{
-			rotationValue = 3.0f;
-			break;
-		}
-		default:
-			rotationValue = (float)std::fmod(timeDifference * 0.16, 2 * PI); //Speed of rotation
-		}
-			
+		//freezes rotation and sets camera on a fix point
+		//rotationValue = 1.35;
 	}
 	m_model = glm::rotate(m_model, rotationValue, glm::vec3(0.0, 1.0, 0.0));
 }
@@ -1242,6 +1399,7 @@ void Painter::setUpFBOs()
 	setFBO(m_fboGhostedView, &m_ghostedViewTextures, 4);
 	setFBO(m_fboFenceHints, &m_fenceHintsTextures, 4);
 
+	setFBO(m_fboPerspectiveDepthMask, &m_mix_outlineHints_adaptiveTransparancy_onDepth_textures, 3);
 	setFBO(m_fbo_mix_onDepth, &m_mix_onDepthTextures, 4);
 	setFBO(m_fbo_mix_onLayer, &m_mix_onLayerTextures, 5);
 }
@@ -1294,17 +1452,8 @@ void Painter::setUpABuffer()
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
 	
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_RGBA32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RGBA, GL_FLOAT, 0);
 	glBindImageTexture(0, m_aBufferTextureArrayID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_RGBA32F);
-
-	//initialize A-Buffer for alpha values
-	glGenTextures(1, &m_aBufferAlphaArrayID);
-	glBindTexture(GL_TEXTURE_2D_ARRAY, m_aBufferAlphaArrayID);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_LINEAR));
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_LINEAR));
-
-	glTexImage3D(GL_TEXTURE_2D_ARRAY, 0, GL_R32F, m_windowWidth, m_windowHeight, c_aBufferMaxLayers, 0, GL_RED, GL_FLOAT, nullptr);
-	glBindImageTexture(1, m_aBufferAlphaArrayID, 0, GL_TRUE, 0, GL_READ_WRITE, GL_R32F);
 
 	//initialize index texture
 	glGenTextures(1, &m_aBufferIndexTexture);
@@ -1313,16 +1462,16 @@ void Painter::setUpABuffer()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
 
 	//Uses GL_R32F instead of GL_R32I that is not working in R257.15
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, nullptr);
-	glBindImageTexture(2, m_aBufferIndexTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
+	glBindImageTexture(1, m_aBufferIndexTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 
 	//initialize type texture as image input
 	glGenTextures(1, &m_transparentTypedTexture);
 	glBindTexture(GL_TEXTURE_2D, m_transparentTypedTexture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(GL_NEAREST));
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(GL_NEAREST));
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, nullptr);
-	glBindImageTexture(3, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_R32F, m_windowWidth, m_windowHeight, 0, GL_RED, GL_FLOAT, 0);
+	glBindImageTexture(2, m_transparentTypedTexture, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
 }
 
 void Painter::setUpCubeMap()
@@ -1403,6 +1552,7 @@ void Painter::bindStaticTextures()
 	bindStaticTextures(m_fenceHintsCubeProgram);
 	bindStaticTextures(m_fenceHintsLineProgram);
 	bindStaticTextures(m_fenceGradientProgram);
+	//bindStaticTextures(m_perspectiveDepthMaskProgram);
 	bindStaticTextures(m_edgeDetectionProgram);
 	bindStaticTextures(m_dilationFilterProgram);
 	bindStaticTextures(m_mixEnhancedEdgesProgram);

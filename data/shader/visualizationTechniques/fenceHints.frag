@@ -1,9 +1,6 @@
 #version 430
 
 uniform vec3 clearColor;
-uniform vec3 lightVector;
-uniform vec3 lightVector2;
-uniform bool useNormals;
 uniform bool renderDepthValueForTextureUsage;
 
 uniform sampler2D texture0;			//top fence components
@@ -88,8 +85,4 @@ void main()
 	}
 	
 	FragColor = vec4(color, 1.0);
-	//FragColor = vec4(0.0, step(0.5, fence.a), 0.0, 1.0);
-	//FragColor = vec4(vec3(fence.a), 1.0);
-	
-	//FragColor = vec4(vec3(fragmentList[0].a), 1.0);
 }

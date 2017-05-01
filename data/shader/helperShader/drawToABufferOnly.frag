@@ -2,9 +2,8 @@
 
 in vec3 v_normals;
 
-uniform vec3 lightVector;
-uniform vec3 lightVector2;
 uniform vec4 specifiedColor;
+layout (location = 10) uniform samplerCube cubeMap;
 uniform bool useNormals;
 uniform bool renderDepthValueForTextureUsage;
 coherent uniform layout(size4x32) image2DArray aBufferImg;
@@ -23,12 +22,7 @@ void main()
 	
 	if(useNormals)
 	{
-		float NdotL  = max(dot(normalize(v_normals), normalize(lightVector)), 0.0);
-		float NdotL2 = max(dot(normalize(v_normals), normalize(lightVector2)), 0.0);
-		vec3 diffuseColor = vec3(0.8, 0.8, 0.8);
-		vec3 diffuseColor2 = vec3(0.3, 0.3, 0.3);
-		vec3 ambient = vec3(0.2, 0.2, 0.2);
-		color = color * vec3(NdotL2 * diffuseColor + NdotL * diffuseColor2 + ambient);
+		color = texture(cubeMap, v_normals).xyz * 0.8;
 	}
 	
 	//Use ABuffer as additional render target

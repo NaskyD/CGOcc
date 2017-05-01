@@ -11,6 +11,7 @@ layout (location = 0) out vec4 FragColor;
 void main()
 {	
 	float x_value = gl_FragCoord.x / float(windowWidth);
+	
 	//center x_value to bottom middle
 	x_value = x_value - 0.5;
 	float y_value = gl_FragCoord.y / float(windowHeight);

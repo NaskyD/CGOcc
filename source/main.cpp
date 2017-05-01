@@ -19,8 +19,8 @@ namespace{
 	bool g_toggleFS = false;
 	bool g_isFS = false;
 	unsigned short g_renderMode = 0;
-	const int c_windowWidth = 1024;//1920;//1024;
-		const int c_windowHeight = 768;//1080;// 768;
+	const int c_windowWidth = 1024;//1920;
+		const int c_windowHeight = 768;//1080;
 	Painter g_painter(c_windowWidth, c_windowHeight);
 }
 
@@ -65,15 +65,13 @@ void key_callback(GLFWwindow * window, int key, int /*scancode*/, int action, in
 		g_painter.setCameraMode(Painter::CameraMode::Pos2);
 }
 
-void window_size_callback(GLFWwindow * window, int width, int height)
+void window_size_callback(GLFWwindow * /* window */, int width, int height)
 {
 	g_painter.resizeWindow(width, height);
 }
 
-void setResizeCallback(GLFWwindow * window, Painter & painter)
+void setResizeCallback(GLFWwindow * window)
 {
-	//glfwSetWindowSizeCallback(window, &painter.resizeWindow);
-	//std::function <void(GLFWwindow*, int, int)> fn = [&painter](GLFWwindow * window, int width, int height) mutable {painter.resizeWindow(width, height); };
 	glfwSetFramebufferSizeCallback(window, window_size_callback);
 }
 
@@ -131,7 +129,7 @@ int main(int /*argc*/, char * /*argv*/[])
 	glfwInit();
 	GLFWwindow * window = createWindow(false);
 	glViewport(0, 0, c_windowWidth, c_windowHeight);
-	setResizeCallback(window, g_painter);
+	setResizeCallback(window);
 	g_painter.initialize();
 
 	// Main loop
@@ -144,7 +142,7 @@ int main(int /*argc*/, char * /*argv*/[])
 			destroyWindow(window);
 			window = createWindow(!g_isFS);
 			glViewport(0, 0, c_windowWidth, c_windowHeight);
-			setResizeCallback(window, g_painter);
+			setResizeCallback(window);
 
 			g_toggleFS = false;
 		}

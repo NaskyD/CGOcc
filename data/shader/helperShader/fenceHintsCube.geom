@@ -1,13 +1,12 @@
 #version 330 core
 
 uniform mat4 transform;
+uniform float geometryHeight;
 
 layout(points) in;
 layout(triangle_strip, max_vertices = 18) out;
 
 float scaleFactor = 0.3;
-//TODO: set from outside
-float height = 14.0;
 
 vec4 scale(vec4 vertex)
 {
@@ -16,7 +15,7 @@ vec4 scale(vec4 vertex)
 
 vec4 toWorldPosition_Height(vec4 vertex)
 {
-	vertex.y = vertex.y + height;
+	vertex.y = vertex.y + geometryHeight;
 	return transform * vertex;
 }
 

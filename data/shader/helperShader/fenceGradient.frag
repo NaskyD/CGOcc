@@ -2,6 +2,7 @@
 
 uniform vec4 specifiedColor;
 uniform bool renderDepthValueForTextureUsage;
+uniform float geometryHeight;
 
 uniform uint typeId;												//has to be smaller than 3
 coherent uniform layout(size4x32) image2DArray aBufferImg;
@@ -13,9 +14,8 @@ in float g_currentHeight;
 
 layout (location = 0) out vec4 FragColor;
 
-//TODO: set from outside
 const float minHeight = -0.7704;
-const float maxHeight = 14.0;
+const float maxHeight = geometryHeight;
  
 void main()
 {

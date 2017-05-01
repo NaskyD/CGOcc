@@ -36,7 +36,6 @@ namespace
 	const double PI = std::atan(1) * 4;
 	const bool c_twoLines = true;
 	const bool c_printFPS = true;
-	//TODO setFenceHintsHeight outside of shader
 	const glm::vec4 c_planeColor(0.25f, 0.25f, 0.25f, 1.f);
 	const glm::vec4 c_streetsColor(0.1f, 0.1f, 0.1f, 1.f);
 	const glm::vec4 c_lineColor(1.0f, 0.6f, 0.0f, 1.0f);
@@ -94,7 +93,6 @@ protected:
 	void drawFullFootprintVisualization(bool inputChanged);
 
 	//mixtures of techniques
-	void mix_outlineHints_adaptiveTransparancy_onDepth(bool inputChanged);
 	void mix_onDepth(bool inputChanged);
 	void mix_onLayer(bool inputChanged);
 	
@@ -172,8 +170,6 @@ protected:
 	globjects::ref_ptr<globjects::Framebuffer> m_fboFenceHints;
 
 	//#### composition visualization fbos
-	//TODO - delete perspectiveDepthMask fbo, textures, ...
-	globjects::ref_ptr<globjects::Framebuffer> m_fboPerspectiveDepthMask;
 	globjects::ref_ptr<globjects::Framebuffer> m_fbo_mix_onDepth;
 	globjects::ref_ptr<globjects::Framebuffer> m_fbo_mix_onLayer;
 
@@ -191,7 +187,6 @@ protected:
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_fenceHintsTextures;
 
 	//#### composition visualization textures
-	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_outlineHints_adaptiveTransparancy_onDepth_textures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_onDepthTextures;
 	std::vector<globjects::ref_ptr<globjects::Texture>> m_mix_onLayerTextures;
 
@@ -262,6 +257,8 @@ protected:
 	glm::mat4x4 m_transform;
 
 	Camera::Camera m_camera;
+
+	//lights are not used at the moment, lighting is achieved by a texture cube map (fixed lighting)
 	glm::vec3 m_sceneLight1;
 	glm::vec3 m_sceneLight2;
 
