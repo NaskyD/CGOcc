@@ -14,6 +14,9 @@ set(WriterCompilerDetectionHeaderFound NOTFOUND)
 include(GenerateExportHeader)
 include(ExternalProject)
 
+# Declare project
+project(${META_PROJECT_NAME} C CXX)
+
 # This module is only available with CMake >=3.1, so check whether it could be found
 include(WriteCompilerDetectionHeader OPTIONAL RESULT_VARIABLE WriterCompilerDetectionHeaderFound)
 include(${CMAKE_MODULE_PATH}/Custom.cmake)
@@ -43,9 +46,6 @@ option(OPTION_SELF_CONTAINED "Create a self-contained install with all dependenc
 # Generate folders for IDE targets (e.g., VisualStudio solutions)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(IDE_FOLDER "")  
-
-# Declare project
-project(${META_PROJECT_NAME} C CXX)
 
 # Set output directories
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
